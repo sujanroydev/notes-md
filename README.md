@@ -1,26 +1,26 @@
-# NOTE.md
+# NOTES.md - Markdown Notes
 
 A simple Markdown note manager for [Visual Studio Code](https://code.visualstudio.com/).
 
-NOTE.md lets you create and manage Markdown notes directly inside VS Code without adding note files to your project.
+NOTES.md lets you create and manage Markdown notes directly inside VS Code without adding note files to your project.
 
 ## Features
 
 - 📝 **Project-specific notes** — Each VS Code workspace has its own collection of notes.
 - ➕ **Create multiple notes** — Create as many Markdown notes as you need for a project.
-- 📂 **Dedicated Notes view** — Access all your notes from the NOTE.md icon in the Activity Bar.
+- 📂 **Dedicated Notes view** — Access all your notes from the NOTES.md icon in the Activity Bar.
 - ✏️ **Edit in VS Code** — Notes open directly in the normal VS Code editor.
 - 🔒 **Keeps your project clean** — Notes are stored separately from your project files.
 - 💾 **Persistent storage** — Notes remain available between VS Code sessions.
 - 📄 **Markdown support** — Write notes using the familiar Markdown format.
-- ⭐ **Default note** — A `NOTE.md` file is automatically created for each project.
+- ⭐ **Default note** — A `NOTES.md` file is automatically created for each project.
 
 ### How it works
 
 After installing the extension:
 
 1. Open a project or workspace in VS Code.
-2. Click the **NOTE.md** icon in the Activity Bar.
+2. Click the **NOTES.md** icon in the Activity Bar.
 3. Your project's notes will appear in the **Notes** view.
 4. Click a note to open it in the editor.
 5. Click the **+** button to create a new note.
@@ -35,7 +35,7 @@ For a project named `my-project`, you could have:
 
 ```text
 Notes
-├── NOTE.md
+├── NOTES.md
 ├── JavaScript.md
 ├── Ideas.md
 ├── Todo.md
@@ -66,9 +66,9 @@ This extension does not currently contribute any VS Code settings.
 
 Initial release.
 
-- Added NOTE.md Activity Bar view.
+- Added NOTES.md Activity Bar view.
 - Added project-specific note storage.
-- Added automatic creation of the default `NOTE.md`.
+- Added automatic creation of the default `NOTES.md`.
 - Added support for creating multiple Markdown notes.
 - Added opening notes directly in the VS Code editor.
 - Added persistent extension storage outside the project workspace.
@@ -80,8 +80,8 @@ Initial release.
 Clone the repository:
 
 ```bash
-git clone https://github.com/sujanroydev/note-md.git
-cd note-md
+git clone https://github.com/sujanroydev/notes-md.git
+cd notes-md
 ```
 
 Install dependencies:
@@ -107,7 +107,7 @@ Press `F5` in VS Code to launch the Extension Development Host.
 ## Project Structure
 
 ```text
-note-md/
+notes-md/
 ├── media/
 │   └── note.svg
 ├── src/
@@ -125,7 +125,7 @@ note-md/
 
 ## Storage
 
-NOTE.md does not create `.md` files inside your project.
+NOTES.md does not create `.md` files inside your project.
 
 Instead, notes are stored in the extension's VS Code global storage using a unique identifier derived from the workspace.
 
@@ -133,14 +133,14 @@ Conceptually:
 
 ```text
 VS Code Global Storage
-└── note-md/
+└── notes-md/
     ├── <project-id>/
-    │   ├── NOTE.md
+    │   ├── NOTES.md
     │   ├── Ideas.md
     │   └── JavaScript.md
     │
     └── <another-project-id>/
-        ├── NOTE.md
+        ├── NOTES.md
         └── Todo.md
 ```
 

@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const createNote = vscode.commands.registerCommand(
-    "note-md.createNote",
+    "notes-md.createNote",
     async () => {
       const workspace = vscode.workspace.workspaceFolders?.[0];
 
@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   const openNote = vscode.commands.registerCommand(
-    "note-md.openNote",
+    "notes-md.openNote",
     async (uri: vscode.Uri) => {
       if (!uri) {
         return;

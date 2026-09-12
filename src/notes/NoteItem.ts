@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 export class NoteItem extends vscode.TreeItem {
   constructor(public readonly uri: vscode.Uri) {
-    const fileName = uri.path.split("/").pop() ?? "NOTE.md";
+    const fileName = uri.path.split("/").pop() ?? "NOTES.md";
 
     super(fileName, vscode.TreeItemCollapsibleState.None);
 
@@ -14,7 +14,7 @@ export class NoteItem extends vscode.TreeItem {
     this.contextValue = "noteMd.note";
 
     this.command = {
-      command: "note-md.openNote",
+      command: "notes-md.openNote",
       title: "Open Note",
       arguments: [uri],
     };

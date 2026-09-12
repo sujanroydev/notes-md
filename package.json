@@ -1,18 +1,18 @@
 {
-  "name": "note-md",
-  "displayName": "NOTE.md",
+  "name": "notes-md",
+  "displayName": "NOTES.md - Markdown Notes",
   "description": "A simple Markdown note manager for VS Code",
   "version": "0.0.1",
   "publisher": "sujanroydev",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sujanroydev/note-md.git"
+    "url": "https://github.com/sujanroydev/notes-md.git"
   },
   "bugs": {
-    "url": "https://github.com/sujanroydev/note-md/issues"
+    "url": "https://github.com/sujanroydev/notes-md/issues"
   },
-  "homepage": "https://github.com/sujanroydev/note-md",
+  "homepage": "https://github.com/sujanroydev/notes-md",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.135.0"
@@ -34,7 +34,7 @@
       "activitybar": [
         {
           "id": "noteMd",
-          "title": "Note.md",
+          "title": "Notes.md",
           "icon": "media/note.svg"
         }
       ]
@@ -49,19 +49,19 @@
     },
     "commands": [
       {
-        "command": "note-md.createNote",
-        "title": "Note.md: New Note",
+        "command": "notes-md.createNote",
+        "title": "Notes.md: New Note",
         "icon": "$(add)"
       },
       {
-        "command": "note-md.openNote",
-        "title": "Note.md: Open Note"
+        "command": "notes-md.openNote",
+        "title": "Notes.md: Open Note"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "note-md.createNote",
+          "command": "notes-md.createNote",
           "when": "view == noteMd.view",
           "group": "navigation"
         }

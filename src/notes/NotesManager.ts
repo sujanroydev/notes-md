@@ -39,7 +39,7 @@ export class NotesManager {
       return;
     }
 
-    const noteUri = vscode.Uri.joinPath(storageUri, "NOTE.md");
+    const noteUri = vscode.Uri.joinPath(storageUri, "NOTES.md");
 
     try {
       await vscode.workspace.fs.stat(noteUri);
@@ -78,11 +78,11 @@ Start writing your notes here...
       const aName = a.path.split("/").pop() ?? "";
       const bName = b.path.split("/").pop() ?? "";
 
-      if (aName.toLowerCase() === "note.md") {
+      if (aName.toLowerCase() === "notes.md") {
         return -1;
       }
 
-      if (bName.toLowerCase() === "note.md") {
+      if (bName.toLowerCase() === "notes.md") {
         return 1;
       }
 
