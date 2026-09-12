@@ -1,71 +1,161 @@
-# note-md README
+# NOTE.md
 
-This is the README for your extension "note-md". After writing up a brief description, we recommend including the following sections.
+A simple Markdown note manager for [Visual Studio Code](https://code.visualstudio.com/).
+
+NOTE.md lets you create and manage Markdown notes directly inside VS Code without adding note files to your project.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- 📝 **Project-specific notes** — Each VS Code workspace has its own collection of notes.
+- ➕ **Create multiple notes** — Create as many Markdown notes as you need for a project.
+- 📂 **Dedicated Notes view** — Access all your notes from the NOTE.md icon in the Activity Bar.
+- ✏️ **Edit in VS Code** — Notes open directly in the normal VS Code editor.
+- 🔒 **Keeps your project clean** — Notes are stored separately from your project files.
+- 💾 **Persistent storage** — Notes remain available between VS Code sessions.
+- 📄 **Markdown support** — Write notes using the familiar Markdown format.
+- ⭐ **Default note** — A `NOTE.md` file is automatically created for each project.
 
-For example if there is an image subfolder under your extension project workspace:
+### How it works
 
-\!\[feature X\]\(images/feature-x.png\)
+After installing the extension:
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+1. Open a project or workspace in VS Code.
+2. Click the **NOTE.md** icon in the Activity Bar.
+3. Your project's notes will appear in the **Notes** view.
+4. Click a note to open it in the editor.
+5. Click the **+** button to create a new note.
+6. Enter a name such as `JavaScript`, `Ideas`, or `Todo`.
+7. The new Markdown note opens automatically.
+
+Your project remains untouched. Notes are stored in VS Code's extension storage and are separated by project.
+
+### Example
+
+For a project named `my-project`, you could have:
+
+```text
+Notes
+├── NOTE.md
+├── JavaScript.md
+├── Ideas.md
+├── Todo.md
+└── Commands.md
+```
+
+These files are **not added to your project's Explorer**.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- Visual Studio Code `1.135.0` or later.
+
+No additional dependencies or configuration are required.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+This extension does not currently contribute any VS Code settings.
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Notes are currently associated with the first workspace folder when using a multi-root workspace.
+- Rename and delete functionality are not currently available.
+- Notes are stored locally and are not synchronized between different computers.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
+Initial release.
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- Added NOTE.md Activity Bar view.
+- Added project-specific note storage.
+- Added automatic creation of the default `NOTE.md`.
+- Added support for creating multiple Markdown notes.
+- Added opening notes directly in the VS Code editor.
+- Added persistent extension storage outside the project workspace.
 
 ---
 
-## Following extension guidelines
+## Development
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Clone the repository:
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+```bash
+git clone https://github.com/sujanroydev/note-md.git
+cd note-md
+```
 
-## Working with Markdown
+Install dependencies:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+```bash
+npm install
+```
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+Compile the extension:
 
-## For more information
+```bash
+npm run compile
+```
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+For development with automatic compilation:
 
-**Enjoy!**
+```bash
+npm run watch
+```
+
+Press `F5` in VS Code to launch the Extension Development Host.
+
+## Project Structure
+
+```text
+note-md/
+├── media/
+│   └── note.svg
+├── src/
+│   ├── extension.ts
+│   ├── notes/
+│   │   ├── NoteItem.ts
+│   │   ├── NotesManager.ts
+│   │   └── NotesProvider.ts
+│   └── utils/
+│       └── projectId.ts
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+## Storage
+
+NOTE.md does not create `.md` files inside your project.
+
+Instead, notes are stored in the extension's VS Code global storage using a unique identifier derived from the workspace.
+
+Conceptually:
+
+```text
+VS Code Global Storage
+└── note-md/
+    ├── <project-id>/
+    │   ├── NOTE.md
+    │   ├── Ideas.md
+    │   └── JavaScript.md
+    │
+    └── <another-project-id>/
+        ├── NOTE.md
+        └── Todo.md
+```
+
+This keeps notes separate for each project while keeping the project itself clean.
+
+## Contributing
+
+Contributions, suggestions, and bug reports are welcome.
+
+If you find an issue or have an idea for a feature, feel free to open an issue or pull request.
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+**Enjoy taking notes without leaving your editor! 📝**
