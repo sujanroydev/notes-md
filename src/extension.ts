@@ -23,20 +23,16 @@ class NoteItem extends vscode.TreeItem {
   }
 }
 
-async function openNote() {
-  const workspace = vscode.workspace.workspaceFolders?.[0];
+async function openNote(context: vscode.ExtensionContext) {
+  const storageUri = context.globalStorageUri;
 
-  if (!workspace) {
-    vscode.window.showWarningMessage("Please open a workspace first.");
-
-    return;
-  }
-
-  const noteUri = vscode.Uri.joinPath(workspace.uri, "NOTE.md");
+  const noteUri = vscode.Uri.joinPath(storageUri, "NOTE.md");
 
   try {
     await vscode.workspace.fs.stat(noteUri);
   } catch {
+    await vscode.workspace.fs.createDirectory(storageUri);
+
     const content = `# Notes
 
 Start writing your notes here...
@@ -57,7 +53,9 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: provider,
   });
 
-  const command = vscode.commands.registerCommand("note-md.open", openNote);
+  const command = vscode.commands.registerCommand("note-md.open", () =>
+    openNote(context),
+  );
 
   context.subscriptions.push(treeView, command);
 }
