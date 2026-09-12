@@ -31,10 +31,24 @@
     },
     "commands": [
       {
-        "command": "note-md.open",
-        "title": "Open NOTE.md"
+        "command": "note-md.createNote",
+        "title": "Note.md: New Note",
+        "icon": "$(add)"
+      },
+      {
+        "command": "note-md.openNote",
+        "title": "Note.md: Open Note"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "note-md.createNote",
+          "when": "view == noteMd.view",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
