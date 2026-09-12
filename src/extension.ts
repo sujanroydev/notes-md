@@ -7,7 +7,7 @@ export function activate(context: vscode.ExtensionContext) {
   const notesManager = new NotesManager(context);
   const provider = new NotesProvider(notesManager);
 
-  const treeView = vscode.window.createTreeView("noteMd.view", {
+  const treeView = vscode.window.createTreeView("notesMd.view", {
     treeDataProvider: provider,
   });
 

@@ -33,16 +33,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "noteMd",
+          "id": "notesMd",
           "title": "Notes.md",
-          "icon": "media/note.svg"
+          "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "noteMd": [
+      "notesMd": [
         {
-          "id": "noteMd.view",
+          "id": "notesMd.view",
           "name": "Notes"
         }
       ]
@@ -62,7 +62,7 @@
       "view/title": [
         {
           "command": "notes-md.createNote",
-          "when": "view == noteMd.view",
+          "when": "view == notesMd.view",
           "group": "navigation"
         }
       ]

@@ -109,7 +109,7 @@ Press `F5` in VS Code to launch the Extension Development Host.
 ```text
 notes-md/
 ├── media/
-│   └── note.svg
+│   └── icon.svg
 ├── src/
 │   ├── extension.ts
 │   ├── notes/

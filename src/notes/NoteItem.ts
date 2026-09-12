@@ -11,7 +11,7 @@ export class NoteItem extends vscode.TreeItem {
 
     this.iconPath = new vscode.ThemeIcon("note");
 
-    this.contextValue = "noteMd.note";
+    this.contextValue = "notesMd.note";
 
     this.command = {
       command: "notes-md.openNote",
