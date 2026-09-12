@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import * as vscode from "vscode";
 
 class NotesProvider implements vscode.TreeDataProvider<NoteItem> {
@@ -23,15 +24,39 @@ class NoteItem extends vscode.TreeItem {
   }
 }
 
-async function openNote(context: vscode.ExtensionContext) {
-  const storageUri = context.globalStorageUri;
+function getProjectId(workspace: vscode.WorkspaceFolder): string {
+  return crypto
+    .createHash("sha256")
+    .update(workspace.uri.toString())
+    .digest("hex")
+    .slice(0, 16);
+}
 
-  const noteUri = vscode.Uri.joinPath(storageUri, "NOTE.md");
+async function openNote(context: vscode.ExtensionContext) {
+  const workspace = vscode.workspace.workspaceFolders?.[0];
+
+  if (!workspace) {
+    vscode.window.showWarningMessage("Please open a workspace first.");
+
+    return;
+  }
+
+  // Create a unique ID for this project
+  const projectId = getProjectId(workspace);
+
+  // Each project gets its own directory
+  const projectStorageUri = vscode.Uri.joinPath(
+    context.globalStorageUri,
+    projectId,
+  );
+
+  // NOTE.md is stored outside the project
+  const noteUri = vscode.Uri.joinPath(projectStorageUri, "NOTE.md");
 
   try {
     await vscode.workspace.fs.stat(noteUri);
   } catch {
-    await vscode.workspace.fs.createDirectory(storageUri);
+    await vscode.workspace.fs.createDirectory(projectStorageUri);
 
     const content = `# Notes
 
