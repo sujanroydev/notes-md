@@ -4,7 +4,7 @@
   "description": "A simple Markdown note for VS Code",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.137.0"
+    "vscode": "^1.135.0"
   },
   "categories": [
     "Other"
@@ -12,10 +12,27 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "noteMd",
+          "title": "Note.md",
+          "icon": "media/note.svg"
+        }
+      ]
+    },
+    "views": {
+      "noteMd": [
+        {
+          "id": "noteMd.view",
+          "name": "Notes"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "note-md.helloWorld",
-        "title": "Hello World"
+        "command": "note-md.open",
+        "title": "Open NOTE.md"
       }
     ]
   },

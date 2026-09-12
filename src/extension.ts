@@ -1,26 +1,63 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+class NotesProvider implements vscode.TreeDataProvider<NoteItem> {
+  getTreeItem(element: NoteItem): vscode.TreeItem {
+    return element;
+  }
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "note-md" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('note-md.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from NOTE.md!');
-	});
-
-	context.subscriptions.push(disposable);
+  getChildren(): NoteItem[] {
+    return [new NoteItem("Open NOTE.md")];
+  }
 }
 
-// This method is called when your extension is deactivated
+class NoteItem extends vscode.TreeItem {
+  constructor(label: string) {
+    super(label);
+
+    this.command = {
+      command: "note-md.open",
+      title: "Open NOTE.md",
+    };
+
+    this.iconPath = new vscode.ThemeIcon("note");
+  }
+}
+
+async function openNote() {
+  const workspace = vscode.workspace.workspaceFolders?.[0];
+
+  if (!workspace) {
+    vscode.window.showWarningMessage("Please open a workspace first.");
+
+    return;
+  }
+
+  const noteUri = vscode.Uri.joinPath(workspace.uri, "NOTE.md");
+
+  try {
+    await vscode.workspace.fs.stat(noteUri);
+  } catch {
+    const content = `# Notes
+
+Start writing your notes here...
+`;
+
+    await vscode.workspace.fs.writeFile(noteUri, Buffer.from(content, "utf8"));
+  }
+
+  const document = await vscode.workspace.openTextDocument(noteUri);
+
+  await vscode.window.showTextDocument(document);
+}
+
+export function activate(context: vscode.ExtensionContext) {
+  const provider = new NotesProvider();
+
+  vscode.window.registerTreeDataProvider("noteMd.view", provider);
+
+  const command = vscode.commands.registerCommand("note-md.open", openNote);
+
+  context.subscriptions.push(command);
+}
+
 export function deactivate() {}
