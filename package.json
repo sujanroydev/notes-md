@@ -1,7 +1,7 @@
 {
   "name": "note-md",
   "displayName": "NOTE.md",
-  "description": "A simple Markdown note for VS Code",
+  "description": "A simple Markdown note manager for VS Code",
   "version": "0.0.1",
   "publisher": "sujanroydev",
   "license": "MIT",
@@ -9,11 +9,23 @@
     "type": "git",
     "url": "https://github.com/sujanroydev/note-md.git"
   },
+  "bugs": {
+    "url": "https://github.com/sujanroydev/note-md/issues"
+  },
+  "homepage": "https://github.com/sujanroydev/note-md",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.135.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "notes",
+    "note-taking",
+    "todo",
+    "productivity"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
