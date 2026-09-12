@@ -53,11 +53,13 @@ Start writing your notes here...
 export function activate(context: vscode.ExtensionContext) {
   const provider = new NotesProvider();
 
-  vscode.window.registerTreeDataProvider("noteMd.view", provider);
+  const treeView = vscode.window.createTreeView("noteMd.view", {
+    treeDataProvider: provider,
+  });
 
   const command = vscode.commands.registerCommand("note-md.open", openNote);
 
-  context.subscriptions.push(command);
+  context.subscriptions.push(treeView, command);
 }
 
 export function deactivate() {}
