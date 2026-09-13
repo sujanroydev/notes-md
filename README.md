@@ -87,19 +87,19 @@ cd notes-md
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 Compile the extension:
 
 ```bash
-npm run compile
+pnpm run compile
 ```
 
 For development with automatic compilation:
 
 ```bash
-npm run watch
+pnpm run watch
 ```
 
 Press `F5` in VS Code to launch the Extension Development Host.
