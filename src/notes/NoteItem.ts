@@ -7,9 +7,14 @@ export class NoteItem extends vscode.TreeItem {
     super(fileName, vscode.TreeItemCollapsibleState.None);
 
     this.tooltip = fileName;
-    this.description = "Markdown note";
 
-    this.iconPath = new vscode.ThemeIcon("note");
+    if (fileName === "GLOBAL.md") {
+      this.iconPath = new vscode.ThemeIcon("globe");
+      this.description = "Global notes";
+    } else {
+      this.iconPath = new vscode.ThemeIcon("note");
+      this.description = "Markdown notes";
+    }
 
     this.contextValue = "notesMd.note";
 
