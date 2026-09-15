@@ -8,6 +8,10 @@ export class NotesManager {
     return vscode.workspace.workspaceFolders?.[0];
   }
 
+  private getGlobalNoteUri(): vscode.Uri {
+    return vscode.Uri.joinPath(this.context.globalStorageUri, "GLOBAL.md");
+  }
+
   private getProjectStorageUri(): vscode.Uri | undefined {
     const workspace = this.getWorkspace();
 
@@ -30,6 +34,24 @@ export class NotesManager {
     await vscode.workspace.fs.createDirectory(storageUri);
 
     return storageUri;
+  }
+
+  async ensureGlobalNote(): Promise<void> {
+    const noteUri = this.getGlobalNoteUri();
+
+    try {
+      await vscode.workspace.fs.stat(noteUri);
+    } catch {
+      const content = `# Global Notes
+
+These notes are available across all projects.
+`;
+
+      await vscode.workspace.fs.writeFile(
+        noteUri,
+        Buffer.from(content, "utf8"),
+      );
+    }
   }
 
   async ensureDefaultNote(): Promise<void> {
@@ -64,32 +86,30 @@ Start writing your notes here...
     }
 
     await this.ensureDefaultNote();
+    await this.ensureGlobalNote();
 
     const entries = await vscode.workspace.fs.readDirectory(storageUri);
 
-    const notes = entries
+    const projectNotes = entries
       .filter(
         ([name, type]) =>
           type === vscode.FileType.File && name.toLowerCase().endsWith(".md"),
       )
       .map(([name]) => vscode.Uri.joinPath(storageUri, name));
 
-    notes.sort((a, b) => {
+    const globalNote = this.getGlobalNoteUri();
+
+    projectNotes.sort((a, b) => {
       const aName = a.path.split("/").pop() ?? "";
       const bName = b.path.split("/").pop() ?? "";
 
-      if (aName.toLowerCase() === "notes.md") {
-        return -1;
-      }
-
-      if (bName.toLowerCase() === "notes.md") {
-        return 1;
-      }
+      if (aName.toLowerCase() === "notes.md") return -1;
+      if (bName.toLowerCase() === "notes.md") return 1;
 
       return aName.localeCompare(bName);
     });
 
-    return notes;
+    return [globalNote, ...projectNotes];
   }
 
   async createNote(name: string): Promise<vscode.Uri | undefined> {
