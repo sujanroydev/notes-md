@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { getProjectId } from "../utils/projectId";
 
+export const PROTECTED_FILE_NAMES = new Set<string>(["GLOBAL.md", "NOTES.md"]);
+
 export class NotesManager {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -173,5 +175,110 @@ Start writing your notes here...
     const document = await vscode.workspace.openTextDocument(uri);
 
     await vscode.window.showTextDocument(document);
+  }
+
+  async renameNote(uri: vscode.Uri, inputName: string): Promise<vscode.Uri | undefined> {
+    const oldName = uri.path.split("/").pop() ?? "";
+
+    if (PROTECTED_FILE_NAMES.has(oldName)) {
+      vscode.window.showErrorMessage(
+        `"${oldName}" is a system file and cannot be renamed.`,
+      );
+
+      return undefined;
+    }
+
+    let fileName = inputName.trim();
+
+    if (!fileName) {
+      vscode.window.showErrorMessage("Note name cannot be empty.");
+
+      return undefined;
+    }
+
+    // Remove .md if the user entered it.
+    if (fileName.toLowerCase().endsWith(".md")) {
+      fileName = fileName.slice(0, -3);
+    }
+
+    // Prevent invalid filename characters.
+    fileName = fileName
+      .replace(/[<>:"\/\\|?*\x00-\x1F]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!fileName) {
+      vscode.window.showErrorMessage("Please enter a valid note name.");
+
+      return undefined;
+    }
+
+    const oldBase = oldName.replace(/\.md$/i, "");
+
+    if (fileName === oldBase) {
+      return uri;
+    }
+
+    fileName += ".md";
+
+    if (PROTECTED_FILE_NAMES.has(fileName)) {
+      vscode.window.showErrorMessage(
+        `"${fileName}" is a reserved system file name.`,
+      );
+
+      return undefined;
+    }
+
+    const parentPath = uri.path.substring(0, uri.path.lastIndexOf("/"));
+    const parentUri = uri.with({ path: parentPath });
+    const newUri = vscode.Uri.joinPath(parentUri, fileName);
+
+    try {
+      await vscode.workspace.fs.stat(newUri);
+
+      vscode.window.showWarningMessage(
+        `A note named "${fileName}" already exists.`,
+      );
+
+      return undefined;
+    } catch {
+      // Target does not exist. Continue.
+    }
+
+    try {
+      await vscode.workspace.fs.rename(uri, newUri, { overwrite: false });
+
+      return newUri;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      vscode.window.showErrorMessage(`Failed to rename note: ${message}`);
+
+      return undefined;
+    }
+  }
+
+  async deleteNote(uri: vscode.Uri): Promise<boolean> {
+    const name = uri.path.split("/").pop() ?? "the note";
+
+    if (PROTECTED_FILE_NAMES.has(name)) {
+      vscode.window.showErrorMessage(
+        `"${name}" is a system file and cannot be deleted.`,
+      );
+
+      return false;
+    }
+
+    try {
+      await vscode.workspace.fs.delete(uri);
+
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      vscode.window.showErrorMessage(`Failed to delete note: ${message}`);
+
+      return false;
+    }
   }
 }

@@ -10,7 +10,10 @@ NOTES.md lets you create and manage Markdown notes directly inside VS Code witho
 - ➕ **Create multiple notes** — Create as many Markdown notes as you need for a project.
 - 📂 **Dedicated Notes view** — Access all your notes from the NOTES.md icon in the Activity Bar.
 - ✏️ **Edit in VS Code** — Notes open directly in the normal VS Code editor.
+- 🔄 **Rename notes** — Rename any note from its context menu in the Notes view.
+- 🗑️ **Delete notes** — Delete notes with a confirmation dialog from the context menu.
 - 🔒 **Keeps your project clean** — Notes are stored separately from your project files.
+- 🛡️ **Protected system files** — `GLOBAL.md` and `NOTES.md` cannot be renamed or deleted.
 - 💾 **Persistent storage** — Notes remain available between VS Code sessions.
 - 📄 **Markdown support** — Write notes using the familiar Markdown format.
 - ⭐ **Default note** — A `NOTES.md` file is automatically created for each project.
@@ -26,6 +29,7 @@ After installing the extension:
 5. Click the **+** button to create a new note.
 6. Enter a name such as `JavaScript`, `Ideas`, or `Todo`.
 7. The new Markdown note opens automatically.
+8. Right-click any note in the Notes view to **Rename** or **Delete** it. `NOTES.md` and `GLOBAL.md` are system files and are protected from renaming and deletion.
 
 Your project remains untouched. Notes are stored in VS Code's extension storage and are separated by project.
 
@@ -57,7 +61,6 @@ This extension does not currently contribute any VS Code settings.
 ## Known Issues
 
 - Notes are currently associated with the first workspace folder when using a multi-root workspace.
-- Rename and delete functionality are not currently available.
 - Notes are stored locally and are not synchronized between different computers.
 
 ## Release Notes

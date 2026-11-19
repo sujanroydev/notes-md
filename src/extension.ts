@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { NoteItem } from "./notes/NoteItem";
 import { NotesManager } from "./notes/NotesManager";
 import { NotesProvider } from "./notes/NotesProvider";
 
@@ -61,11 +62,114 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const renameNote = vscode.commands.registerCommand(
+    "notes-md.renameNote",
+    async (item?: NoteItem | vscode.Uri) => {
+      const uri = item instanceof vscode.Uri ? item : item?.uri;
+
+      if (!uri) {
+        vscode.window.showWarningMessage(
+          "Please select a note from the Notes view.",
+        );
+
+        return;
+      }
+
+      const wasOpen =
+        vscode.window.activeTextEditor?.document.uri.toString() ===
+        uri.toString();
+
+      const currentName = uri.path.split("/").pop() ?? "";
+      const nameWithoutExt = currentName.replace(/\.md$/i, "");
+
+      const input = await vscode.window.showInputBox({
+        prompt: "Enter a new name for the note",
+        value: nameWithoutExt,
+        placeHolder: "e.g. JavaScript Promises",
+        validateInput: (value) => {
+          if (!value.trim()) {
+            return "Note name cannot be empty.";
+          }
+
+          return undefined;
+        },
+      });
+
+      if (input === undefined) {
+        return;
+      }
+
+      const newUri = await notesManager.renameNote(uri, input);
+
+      if (!newUri) {
+        return;
+      }
+
+      provider.refresh();
+
+      if (wasOpen) {
+        await notesManager.openNote(newUri);
+      }
+    },
+  );
+
+  const deleteNote = vscode.commands.registerCommand(
+    "notes-md.deleteNote",
+    async (item?: NoteItem | vscode.Uri) => {
+      const uri = item instanceof vscode.Uri ? item : item?.uri;
+
+      if (!uri) {
+        vscode.window.showWarningMessage(
+          "Please select a note from the Notes view.",
+        );
+
+        return;
+      }
+
+      const name = uri.path.split("/").pop() ?? "the note";
+      const wasOpen =
+        vscode.window.activeTextEditor?.document.uri.toString() ===
+        uri.toString();
+
+      const choice = await vscode.window.showWarningMessage(
+        `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+        { modal: true },
+        "Delete",
+        "Cancel",
+      );
+
+      if (choice !== "Delete") {
+        return;
+      }
+
+      const deleted = await notesManager.deleteNote(uri);
+
+      if (!deleted) {
+        return;
+      }
+
+      provider.refresh();
+
+      if (wasOpen) {
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+      }
+
+      vscode.window.showInformationMessage(`"${name}" has been deleted.`);
+    },
+  );
+
   const workspaceChange = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     provider.refresh();
   });
 
-  context.subscriptions.push(treeView, createNote, openNote, workspaceChange);
+  context.subscriptions.push(
+    treeView,
+    createNote,
+    openNote,
+    renameNote,
+    deleteNote,
+    workspaceChange,
+  );
 }
 
 export function deactivate() {}

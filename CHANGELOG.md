@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added **Rename** and **Delete** actions to the context menu of notes in the Notes view.
+- Added confirmation dialogs for deleting notes.
+- Renaming an open note reopens it under its new name without losing content.
+
+### Changed
+
+- `GLOBAL.md` and `NOTES.md` are now permanently protected: they cannot be renamed or deleted from the UI or at the data-operation level.
+
 ## [0.0.2] - 2026-09-12
 
 ### Added

@@ -56,6 +56,16 @@
       {
         "command": "notes-md.openNote",
         "title": "Notes.md: Open Note"
+      },
+      {
+        "command": "notes-md.renameNote",
+        "title": "Notes.md: Rename Note",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "notes-md.deleteNote",
+        "title": "Notes.md: Delete Note",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -64,6 +74,22 @@
           "command": "notes-md.createNote",
           "when": "view == notesMd.view",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "notes-md.renameNote",
+          "title": "Rename",
+          "icon": "$(edit)",
+          "when": "view == notesMd.view && viewItem == notesMd.note",
+          "group": "notesMd@1"
+        },
+        {
+          "command": "notes-md.deleteNote",
+          "title": "Delete",
+          "icon": "$(trash)",
+          "when": "view == notesMd.view && viewItem == notesMd.note",
+          "group": "notesMd@2"
         }
       ]
     }

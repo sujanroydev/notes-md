@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { PROTECTED_FILE_NAMES } from "./NotesManager";
 
 export class NoteItem extends vscode.TreeItem {
   constructor(public readonly uri: vscode.Uri) {
@@ -8,6 +9,8 @@ export class NoteItem extends vscode.TreeItem {
 
     this.tooltip = fileName;
 
+    const isProtected = PROTECTED_FILE_NAMES.has(fileName);
+
     if (fileName === "GLOBAL.md") {
       this.iconPath = new vscode.ThemeIcon("globe");
       this.description = "Global notes";
@@ -16,7 +19,7 @@ export class NoteItem extends vscode.TreeItem {
       this.description = "Markdown notes";
     }
 
-    this.contextValue = "notesMd.note";
+    this.contextValue = isProtected ? "notesMd.protectedNote" : "notesMd.note";
 
     this.command = {
       command: "notes-md.openNote",
