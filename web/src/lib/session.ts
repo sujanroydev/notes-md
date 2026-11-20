@@ -15,6 +15,7 @@ export interface AppUser {
 export interface SessionContext {
   token: string;
   user: AppUser;
+  expires_at: string;
 }
 
 const SESSION_COOKIE_OPTIONS = {
@@ -106,7 +107,10 @@ export async function getSessionFromToken(
     return null;
   }
 
-  const users = (session as unknown as { users: AppUser | null }).users;
+  const users = (session as unknown as {
+    users: AppUser | null;
+    expires_at: string;
+  }).users;
   if (!users) {
     return null;
   }
@@ -114,6 +118,7 @@ export async function getSessionFromToken(
   return {
     token,
     user: users,
+    expires_at: (session as unknown as { expires_at: string }).expires_at,
   };
 }
 

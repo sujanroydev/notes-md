@@ -1,0 +1,122 @@
+import { z } from "zod";
+
+export const NoteTypeSchema = z.enum(["global", "project_default", "regular"]);
+
+export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(
+  itemSchema: T,
+) =>
+  z.object({
+    items: z.array(itemSchema),
+    hasMore: z.boolean().optional(),
+  });
+
+export const UserSchema = z.object({
+  id: z.string(),
+  google_id: z.string(),
+  email: z.string().email(),
+  name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const SessionSchema = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  token_hash: z.string(),
+  expires_at: z.string(),
+  revoked_at: z.string().nullable(),
+  created_at: z.string(),
+  users: UserSchema,
+});
+
+export const WorkProjectSchema = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  name: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  deleted_at: z.string().nullable(),
+});
+
+export const WorkNoteSchema = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  project_id: z.string().nullable(),
+  name: z.string(),
+  content: z.string(),
+  note_type: NoteTypeSchema,
+  version: z.bigint(),
+  content_hash: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  deleted_at: z.string().nullable(),
+});
+
+export const CreateProjectInputSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Project name is required")
+    .max(120, "Project name is too long")
+    .regex(/^[a-zA-Z0-9 _.&-]+$/, "Project name contains invalid characters"),
+});
+
+export const RenameProjectInputSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Project name is required")
+    .max(120, "Project name is too long")
+    .regex(/^[a-zA-Z0-9 _.&-]+$/, "Project name contains invalid characters"),
+});
+
+export const CreateNoteInputSchema = z.object({
+  project_id: z.string().uuid().optional(),
+  name: z
+    .string()
+    .min(1, "Note name is required")
+    .max(120, "Note name is too long")
+    .regex(/^[a-zA-Z0-9 _.&-]+$/, "Note name contains invalid characters"),
+  note_type: NoteTypeSchema.default("regular"),
+});
+
+export const UpdateNoteContentSchema = z.object({
+  content: z.string().max(10 * 1024 * 1024, "Note content is too large"),
+});
+
+export const RenameNoteInputSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Note name is required")
+    .max(120, "Note name is too long")
+    .regex(/^[a-zA-Z0-9 _.&-]+$/, "Note name contains invalid characters"),
+});
+
+export const DeleteNoteInputSchema = z.object({
+  version: z.bigint().optional(),
+  expected_content_hash: z.string().uuid().optional(),
+});
+
+export const SyncRequestSchema = z.object({
+  baseVersion: z.bigint().optional(),
+  localChanges: z.array(
+    z.object({
+      type: z.enum(["create", "update", "delete"]),
+      id: z.string().uuid(),
+      project_id: z.string().uuid().nullable(),
+      name: z.string(),
+      note_type: NoteTypeSchema,
+      content: z.string().optional(),
+      version: z.bigint().optional(),
+      content_hash: z.string().optional(),
+    }),
+  ),
+  localDeletions: z.array(z.string().uuid()).optional(),
+  localCreates: z.array(z.string().uuid()).optional(),
+});
+
+export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>;
+export type RenameProjectInput = z.infer<typeof RenameProjectInputSchema>;
+export type CreateNoteInput = z.infer<typeof CreateNoteInputSchema>;
+export type UpdateNoteContent = z.infer<typeof UpdateNoteContentSchema>;
+export type RenameNoteInput = z.infer<typeof RenameNoteInputSchema>;
+export type SyncRequest = z.infer<typeof SyncRequestSchema>;

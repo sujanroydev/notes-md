@@ -1,4 +1,4 @@
-import { OAuth2Client, type Payload } from "google-auth-library";
+import { OAuth2Client, LoginTicket } from "google-auth-library";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -16,8 +16,10 @@ if (!googleClientId || !googleClientSecret) {
 export const oauth2Client = new OAuth2Client(
   googleClientId,
   googleClientSecret,
-  `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google/callback`,
 );
+
+/** The default redirect URI configured on the client (kept accessible). */
+const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google/callback`;
 
 export const GOOGLE_ISSUERS = [
   "accounts.google.com",
@@ -33,7 +35,7 @@ export function buildGoogleAuthUrl(params: {
   redirectUri?: string;
   scope?: string;
 }): string {
-  const { state, nonce, redirectUri, scope } = params;
+  const { state, nonce, redirectUri: redirectUriOverride, scope } = params;
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
@@ -41,7 +43,7 @@ export function buildGoogleAuthUrl(params: {
     state,
     nonce,
     scope: scope ?? "openid email profile",
-    redirect_uri: redirectUri ?? oauth2Client.redirectUri,
+    redirect_uri: redirectUriOverride ?? redirectUri,
   });
 }
 
@@ -55,12 +57,12 @@ export async function exchangeCodeForTokens(code: string) {
 
 /**
  * Verify a Google ID token: signature, issuer, audience, expiration, nonce.
- * Returns the verified payload (containing Google's stable `sub`).
+ * Returns the verified token payload (containing Google's stable `sub`).
  */
 export async function verifyGoogleIdToken(params: {
   idToken: string;
   nonce?: string;
-}): Promise<Payload> {
+}): Promise<ReturnType<LoginTicket["getPayload"]>> {
   const { idToken, nonce } = params;
   const ticket = await oauth2Client.verifyIdToken({
     idToken,
@@ -90,3 +92,4 @@ export async function verifyGoogleIdToken(params: {
 
   return payload;
 }
+
