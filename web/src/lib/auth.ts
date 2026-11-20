@@ -23,8 +23,12 @@ export function isHttpError(error: unknown): error is HttpError {
 export async function extractToken(request: Request): Promise<string | undefined> {
   // Authorization: Bearer <token> takes precedence for API clients.
   const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    return authHeader.slice(7).trim();
+  const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch) {
+    const token = bearerMatch[1].trim();
+    if (token) {
+      return token;
+    }
   }
 
   // Fall back to the HttpOnly session cookie for browser clients.
@@ -37,7 +41,7 @@ export async function extractToken(request: Request): Promise<string | undefined
  */
 export async function authenticateRequest(
   request: Request,
-): Promise<Awaited<ReturnType<typeof getSessionFromToken>> & { token: string }> {
+): Promise<NonNullable<Awaited<ReturnType<typeof getSessionFromToken>>>> {
   const token = await extractToken(request);
   if (!token) {
     throw new HttpError(401, "Unauthenticated: no session found");

@@ -1,39 +1,49 @@
-import { OAuth2Client, LoginTicket } from "google-auth-library";
+import { OAuth2Client, type LoginTicket } from "google-auth-library";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-let client: OAuth2Client | null = null;
 
-function getGoogleClient(): OAuth2Client {
+function getGoogleClient(redirectUri?: string): OAuth2Client {
   if (!googleClientId || !googleClientSecret) {
     throw new Error(
       "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables.",
     );
   }
-  if (!client) {
-    client = new OAuth2Client(googleClientId, googleClientSecret);
-  }
-  return client;
+  return new OAuth2Client(googleClientId, googleClientSecret, redirectUri);
 }
 
-/**
- * Google OAuth 2.0 client used ONLY on the server.
- * The client secret never reaches the browser.
- */
-export const oauth2Client = new Proxy({} as OAuth2Client, {
-  get(_target, property) {
-    const value = Reflect.get(getGoogleClient(), property);
-    return typeof value === "function" ? value.bind(getGoogleClient()) : value;
-  },
-});
+export function getAppBaseUrl(requestUrl: string): URL {
+  const configuredUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (!configuredUrl && process.env.NODE_ENV === "production") {
+    throw new Error("Missing NEXT_PUBLIC_BASE_URL environment variable.");
+  }
 
-/** The default redirect URI configured on the client (kept accessible). */
-const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google/callback`;
+  const baseUrl = new URL(configuredUrl ?? new URL(requestUrl).origin);
+  if (baseUrl.protocol !== "https:" && baseUrl.protocol !== "http:") {
+    throw new Error("NEXT_PUBLIC_BASE_URL must use HTTP or HTTPS.");
+  }
+  if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:") {
+    throw new Error("NEXT_PUBLIC_BASE_URL must use HTTPS in production.");
+  }
+  return new URL(baseUrl.origin);
+}
+
+export function getGoogleCallbackUrl(baseUrl: URL): string {
+  return new URL("/api/auth/google/callback", baseUrl).toString();
+}
 
 export const GOOGLE_ISSUERS = [
   "accounts.google.com",
   "https://accounts.google.com",
 ];
+
+type VerifiedGooglePayload = NonNullable<
+  ReturnType<LoginTicket["getPayload"]>
+> & {
+  email: string;
+  email_verified: true;
+  sub: string;
+};
 
 /**
  * Build the Google authorization URL for the server-side code flow.
@@ -41,26 +51,26 @@ export const GOOGLE_ISSUERS = [
 export function buildGoogleAuthUrl(params: {
   state: string;
   nonce: string;
-  redirectUri?: string;
+  redirectUri: string;
   scope?: string;
 }): string {
-  const { state, nonce, redirectUri: redirectUriOverride, scope } = params;
-  return oauth2Client.generateAuthUrl({
+  const { state, nonce, redirectUri, scope } = params;
+  return getGoogleClient(redirectUri).generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     include_granted_scopes: true,
     state,
     nonce,
     scope: scope ?? "openid email profile",
-    redirect_uri: redirectUriOverride ?? redirectUri,
+    redirect_uri: redirectUri,
   });
 }
 
 /**
  * Exchange an authorization code for Google tokens.
  */
-export async function exchangeCodeForTokens(code: string) {
-  const { tokens } = await oauth2Client.getToken(code);
+export async function exchangeCodeForTokens(code: string, redirectUri: string) {
+  const { tokens } = await getGoogleClient(redirectUri).getToken(code);
   return tokens;
 }
 
@@ -70,10 +80,10 @@ export async function exchangeCodeForTokens(code: string) {
  */
 export async function verifyGoogleIdToken(params: {
   idToken: string;
-  nonce?: string;
-}): Promise<ReturnType<LoginTicket["getPayload"]>> {
+  nonce: string;
+}): Promise<VerifiedGooglePayload> {
   const { idToken, nonce } = params;
-  const ticket = await oauth2Client.verifyIdToken({
+  const ticket = await getGoogleClient().verifyIdToken({
     idToken,
     audience: googleClientId,
   });
@@ -86,8 +96,17 @@ export async function verifyGoogleIdToken(params: {
     throw new Error("Google ID token has an invalid issuer");
   }
 
-  if (payload.aud !== googleClientId) {
+  const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!googleClientId || !audiences.includes(googleClientId)) {
     throw new Error("Google ID token audience does not match the client ID");
+  }
+
+  const { email, sub } = payload;
+  if (!sub) {
+    throw new Error("Google ID token is missing the subject");
+  }
+  if (!email || payload.email_verified !== true) {
+    throw new Error("Google account does not have a verified email address");
   }
 
   // Expiration is validated by verifyIdToken; re-check defensively.
@@ -95,10 +114,10 @@ export async function verifyGoogleIdToken(params: {
     throw new Error("Google ID token has expired");
   }
 
-  if (nonce && payload.nonce !== nonce) {
+  if (!nonce || payload.nonce !== nonce) {
     throw new Error("Google ID token nonce does not match");
   }
 
-  return payload;
+  return { ...payload, email, email_verified: true, sub };
 }
 

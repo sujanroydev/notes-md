@@ -1,29 +1,30 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { extractToken } from "@/lib/auth";
 import { getSessionFromToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const token = request.headers.get("authorization")?.startsWith("Bearer ")
-    ? request.headers.get("authorization")!.slice(7).trim()
-    : cookieStore.get("notes-md-session")?.value;
-
-  const session = await getSessionFromToken(token ?? "");
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  }
-
-  return NextResponse.json({
-    user: {
-      id: session.user.id,
-      google_id: session.user.google_id,
-      email: session.user.email,
-      name: session.user.name,
-      avatar_url: session.user.avatar_url,
-    },
-    expires_at: session.expires_at,
+function noStoreJson(body: unknown, status = 200): NextResponse {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
   });
+}
+
+export async function GET(request: Request) {
+  try {
+    const token = await extractToken(request);
+    const session = token ? await getSessionFromToken(token) : null;
+    if (!session) {
+      return noStoreJson({ error: "Unauthenticated" }, 401);
+    }
+
+    return noStoreJson({
+      user: session.user,
+      expires_at: session.expires_at,
+    });
+  } catch (error) {
+    console.error("Session validation failed:", error);
+    return noStoreJson({ error: "Failed to validate session" }, 500);
+  }
 }

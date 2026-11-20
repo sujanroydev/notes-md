@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { sha256, generateToken } from "./crypto";
 import { supabase } from "./supabase";
 
@@ -25,8 +26,11 @@ const SESSION_COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
 };
 
+const configuredMaxAge = Number(process.env.SESSION_MAX_AGE_SECONDS);
 export const SESSION_MAX_AGE_SECONDS =
-  Number(process.env.SESSION_MAX_AGE_SECONDS) || 1209600; // 14 days
+  Number.isSafeInteger(configuredMaxAge) && configuredMaxAge > 0
+    ? configuredMaxAge
+    : 1209600;
 
 /**
  * Create a new application session for a user. Returns the raw session token
@@ -37,6 +41,10 @@ export async function createSession(
   userId: string,
   maxAgeSeconds: number = SESSION_MAX_AGE_SECONDS,
 ): Promise<string> {
+  if (!Number.isSafeInteger(maxAgeSeconds) || maxAgeSeconds <= 0) {
+    throw new Error("Session lifetime must be a positive integer.");
+  }
+
   const token = generateToken();
   const tokenHash = sha256(token);
   const expiresAt = new Date(Date.now() + maxAgeSeconds * 1000).toISOString();
@@ -57,9 +65,8 @@ export async function createSession(
 /**
  * Set the session token as a secure, HttpOnly, SameSite cookie (web clients).
  */
-export async function setSessionCookie(token: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
+export function setSessionCookie(response: NextResponse, token: string): void {
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
     ...SESSION_COOKIE_OPTIONS,
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
@@ -68,12 +75,11 @@ export async function setSessionCookie(token: string): Promise<void> {
 /**
  * Clear the session cookie (logout).
  */
-export async function clearSessionCookie(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, "", {
+export function clearSessionCookie(response: NextResponse): void {
+  response.cookies.set(SESSION_COOKIE_NAME, "", {
     ...SESSION_COOKIE_OPTIONS,
     maxAge: 0,
-    path: "/",
+    expires: new Date(0),
   });
 }
 
@@ -92,6 +98,10 @@ export async function getSessionCookieToken(): Promise<string | undefined> {
 export async function getSessionFromToken(
   token: string,
 ): Promise<SessionContext | null> {
+  if (!token) {
+    return null;
+  }
+
   const tokenHash = sha256(token);
   const now = new Date().toISOString();
 
@@ -103,7 +113,10 @@ export async function getSessionFromToken(
     .gt("expires_at", now)
     .maybeSingle();
 
-  if (error || !session) {
+  if (error) {
+    throw new Error(`Failed to validate session: ${error.message}`);
+  }
+  if (!session) {
     return null;
   }
 
@@ -125,10 +138,22 @@ export async function getSessionFromToken(
 /**
  * Revoke a session (logout / revocation).
  */
-export async function revokeSession(token: string): Promise<void> {
+export async function revokeSession(token: string): Promise<boolean> {
+  if (!token) {
+    return false;
+  }
+
   const tokenHash = sha256(token);
-  await supabase
+  const { data, error } = await supabase
     .from("sessions")
     .update({ revoked_at: new Date().toISOString() })
-    .eq("token_hash", tokenHash);
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to revoke session: ${error.message}`);
+  }
+  return data !== null;
 }
