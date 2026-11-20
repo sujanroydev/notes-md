@@ -6,6 +6,7 @@ export interface WorkProject {
   name: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface WorkNote {
@@ -87,6 +88,45 @@ export async function createProject(name: string): Promise<WorkProject> {
   return res.json();
 }
 
+export async function renameProject(id: string, name: string): Promise<WorkProject> {
+  const res = await fetch(`${API_BASE}/api/work/projects/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await apiAuthHeaders()),
+    },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Failed to rename project: ${txt}`);
+  }
+  return res.json();
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/work/projects/${id}`, {
+    method: "DELETE",
+    headers: await apiAuthHeaders(),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Failed to delete project: ${txt}`);
+  }
+}
+
+export async function restoreProject(id: string): Promise<WorkProject> {
+  const res = await fetch(`${API_BASE}/api/work/projects/${id}/restore`, {
+    method: "POST",
+    headers: await apiAuthHeaders(),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Failed to restore project: ${txt}`);
+  }
+  return res.json();
+}
+
 export async function listNotes(projectId?: string): Promise<WorkNote[]> {
   const url = projectId
     ? `${API_BASE}/api/work/notes?projectId=${projectId}`
@@ -119,7 +159,11 @@ export async function createNote(
       "Content-Type": "application/json",
       ...(await apiAuthHeaders()),
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      project_id: data.projectId,
+      name: data.name,
+      note_type: data.noteType,
+    }),
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -145,6 +189,27 @@ export async function updateNote(
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Failed to update note: ${txt}`);
+  }
+  return res.json();
+}
+
+export async function renameNote(
+  id: string,
+  name: string,
+  version?: number,
+  contentHash?: string | null,
+): Promise<WorkNote> {
+  const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await apiAuthHeaders()),
+    },
+    body: JSON.stringify({ name, version, contentHash }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Failed to rename note: ${txt}`);
   }
   return res.json();
 }

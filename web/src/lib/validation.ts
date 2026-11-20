@@ -46,7 +46,7 @@ export const WorkNoteSchema = z.object({
   name: z.string(),
   content: z.string(),
   note_type: NoteTypeSchema,
-  version: z.bigint(),
+  version: z.number().int().nonnegative(),
   content_hash: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -56,6 +56,7 @@ export const WorkNoteSchema = z.object({
 export const CreateProjectInputSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Project name is required")
     .max(120, "Project name is too long")
     .regex(/^[a-zA-Z0-9 _.&-]+$/, "Project name contains invalid characters"),
@@ -64,36 +65,54 @@ export const CreateProjectInputSchema = z.object({
 export const RenameProjectInputSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Project name is required")
     .max(120, "Project name is too long")
     .regex(/^[a-zA-Z0-9 _.&-]+$/, "Project name contains invalid characters"),
 });
 
 export const CreateNoteInputSchema = z.object({
-  project_id: z.string().uuid().optional(),
+  project_id: z.string().uuid().nullable().optional(),
   name: z
     .string()
+    .trim()
     .min(1, "Note name is required")
     .max(120, "Note name is too long")
     .regex(/^[a-zA-Z0-9 _.&-]+$/, "Note name contains invalid characters"),
   note_type: NoteTypeSchema.default("regular"),
-});
+}).refine(
+  (note) => {
+    if (note.note_type === "project_default") {
+      return note.project_id !== null && note.project_id !== undefined;
+    }
+    if (note.note_type === "global") {
+      return note.project_id === null || note.project_id === undefined;
+    }
+    return true;
+  },
+  "Note type and project must be consistent",
+);
 
 export const UpdateNoteContentSchema = z.object({
   content: z.string().max(10 * 1024 * 1024, "Note content is too large"),
+  version: z.number().int().positive().optional(),
+  contentHash: z.string().nullable().optional(),
 });
 
 export const RenameNoteInputSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, "Note name is required")
     .max(120, "Note name is too long")
     .regex(/^[a-zA-Z0-9 _.&-]+$/, "Note name contains invalid characters"),
+  version: z.number().int().positive().optional(),
+  contentHash: z.string().nullable().optional(),
 });
 
 export const DeleteNoteInputSchema = z.object({
-  version: z.bigint().optional(),
-  expected_content_hash: z.string().uuid().optional(),
+  version: z.number().int().positive().optional(),
+  contentHash: z.string().nullable().optional(),
 });
 
 export const SyncRequestSchema = z.object({
