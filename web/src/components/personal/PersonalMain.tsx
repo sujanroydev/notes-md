@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Trash2, Archive, CheckCircle, AlertTriangle, Eye, EyeOff, Clock, Folder, Tag, MoreHorizontal, LayoutGrid, List, Sun, Moon, Settings, Save, Loader2 } from "lucide-react";
+import { Search, Plus, Trash2, Archive, CheckCircle, AlertTriangle, Eye, EyeOff, Clock, Folder, Tag, MoreHorizontal, LayoutGrid, List, Sun, Moon, Settings, Save, Loader2, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,24 +12,11 @@ import { useTheme } from "@/app/providers";
 import { PERSONAL_DB } from "@/stores/personalDb";
 import type { PersonalNote, PersonalFolder, PersonalTag } from "@/stores/personalDb";
 
-interface PersonalNote {
-  id: string;
-  title: string;
-  content: string;
-  folderId: string | null;
-  favorite: boolean;
-  archived: boolean;
-  trashed: boolean;
-  tags: { id: string; label: string }[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export function PersonalMain() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [notes, setNotes] = useState<PersonalNote[]>([]);
-  const [folders] = useState<PersonalFolder[]>([]);
+  const [folders, setFolders] = useState<PersonalFolder[]>([]);
   const [tags, setTags] = useState<PersonalTag[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<"all" | "favorites" | "recent" | "archive" | "trash">("all");
@@ -59,7 +46,9 @@ export function PersonalMain() {
   const handleCreate = async () => {
     const title = prompt("Note title:");
     if (!title) return;
-    const note = await PERSONAL_DB.notes.add({
+    const id = crypto.randomUUID();
+    const note: PersonalNote = {
+      id,
       title,
       content: "",
       folderId: null,
@@ -69,8 +58,9 @@ export function PersonalMain() {
       tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
-    setNotes((prev) => [...prev, { ...note, id: note.id }]);
+    };
+    await PERSONAL_DB.notes.add(note);
+    setNotes((prev) => [...prev, note]);
     router.push(`/note/${note.id}`);
   };
 
@@ -80,7 +70,7 @@ export function PersonalMain() {
       : view === "recent"
       ? [...notes]
           .filter((n) => !n.trashed)
-          .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, 20)
       : view === "archive"
       ? notes.filter((n) => n.archived && !n.trashed)
@@ -187,7 +177,7 @@ export function PersonalMain() {
                         if (e.key === "Escape") setEditingId(null);
                       }}
                       className="text-sm"
-                      autofocus
+                      autoFocus
                     />
                   ) : (
                     <button

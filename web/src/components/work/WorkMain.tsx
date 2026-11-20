@@ -38,6 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { showToast } from "@/components/ui/toast";
 import { useTheme } from "@/app/providers";
 import { WorkProject } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface WorkMainProps {
   initialProjects: WorkProject[];
@@ -45,7 +46,7 @@ interface WorkMainProps {
 
 export function WorkMain({ initialProjects }: WorkMainProps) {
   const router = useRouter();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [projects, setProjects] = useState<WorkProject[]>(initialProjects);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -142,7 +143,7 @@ export function WorkMain({ initialProjects }: WorkMainProps) {
               <div>
                 <p className="text-sm font-medium">{project.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {project.notes?.length ?? 0} notes
+                  Project
                 </p>
               </div>
               {activeProject === project.id && (

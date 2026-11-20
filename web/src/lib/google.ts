@@ -2,21 +2,30 @@ import { OAuth2Client, LoginTicket } from "google-auth-library";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+let client: OAuth2Client | null = null;
 
-if (!googleClientId || !googleClientSecret) {
-  throw new Error(
-    "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables.",
-  );
+function getGoogleClient(): OAuth2Client {
+  if (!googleClientId || !googleClientSecret) {
+    throw new Error(
+      "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables.",
+    );
+  }
+  if (!client) {
+    client = new OAuth2Client(googleClientId, googleClientSecret);
+  }
+  return client;
 }
 
 /**
  * Google OAuth 2.0 client used ONLY on the server.
  * The client secret never reaches the browser.
  */
-export const oauth2Client = new OAuth2Client(
-  googleClientId,
-  googleClientSecret,
-);
+export const oauth2Client = new Proxy({} as OAuth2Client, {
+  get(_target, property) {
+    const value = Reflect.get(getGoogleClient(), property);
+    return typeof value === "function" ? value.bind(getGoogleClient()) : value;
+  },
+});
 
 /** The default redirect URI configured on the client (kept accessible). */
 const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google/callback`;

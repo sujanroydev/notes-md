@@ -47,3 +47,7 @@ export function useTheme(): ThemeContextValue {
   }
   return ctx;
 }
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <ThemeProvider>{children}</ThemeProvider>;
+}

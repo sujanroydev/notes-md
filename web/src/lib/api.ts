@@ -65,7 +65,9 @@ export async function listProjects(): Promise<WorkProject[]> {
   const res = await fetch(`${API_BASE}/api/work/projects`, {
     headers: await apiAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to list projects");
+  if (!res.ok) {
+    throw new Error("Failed to list projects");
+  }
   return res.json();
 }
 
@@ -92,7 +94,9 @@ export async function listNotes(projectId?: string): Promise<WorkNote[]> {
   const res = await fetch(url, {
     headers: await apiAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to list notes");
+  if (!res.ok) {
+    throw new Error("Failed to list notes");
+  }
   return res.json();
 }
 
@@ -100,7 +104,9 @@ export async function getNote(id: string): Promise<WorkNote> {
   const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
     headers: await apiAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to get note");
+  if (!res.ok) {
+    throw new Error("Failed to get note");
+  }
   return res.json();
 }
 
@@ -184,7 +190,9 @@ export async function listTrashedNotes(): Promise<WorkNote[]> {
   const res = await fetch(`${API_BASE}/api/work/notes?trashed=true`, {
     headers: await apiAuthHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to list trashed notes");
+  if (!res.ok) {
+    throw new Error("Failed to list trashed notes");
+  }
   return res.json();
 }
 

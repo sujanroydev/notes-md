@@ -4,6 +4,7 @@ import { getSessionFromToken } from "@/lib/session";
 import { SideNav } from "@/components/layout/SideNav";
 import { WorkMain } from "@/components/work/WorkMain";
 import { PersonalMain } from "@/components/personal/PersonalMain";
+import { listProjects } from "@/lib/api";
 
 export default async function RootPage() {
   const cookieStore = await cookies();
@@ -27,11 +28,13 @@ export default async function RootPage() {
     redirect("/signin");
   }
 
+  const projects = await listProjects();
+
   // In Work mode the authenticated user is present; route to Work UI.
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <SideNav user={user} />
-      <WorkMain user={user} />
+      <WorkMain initialProjects={projects} />
     </div>
   );
 }
