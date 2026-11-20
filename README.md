@@ -17,6 +17,8 @@ NOTES.md lets you create and manage Markdown notes directly inside VS Code witho
 - 💾 **Persistent storage** — Notes remain available between VS Code sessions.
 - 📄 **Markdown support** — Write notes using the familiar Markdown format.
 - ⭐ **Default note** — A `NOTES.md` file is automatically created for each project.
+- ☁️ **Web synchronization** — Link your account to sync notes with the NOTES.md web app.
+- ⚖️ **Conflict protection** — Concurrent edits are reported without overwriting local content.
 
 ### How it works
 
@@ -32,6 +34,17 @@ After installing the extension:
 8. Right-click any note in the Notes view to **Rename** or **Delete** it. `NOTES.md` and `GLOBAL.md` are system files and are protected from renaming and deletion.
 
 Your project remains untouched. Notes are stored in VS Code's extension storage and are separated by project.
+
+### Syncing with the web app
+
+1. Set `notes-md.webBaseUrl` to your NOTES.md web app URL.
+2. Run **Notes.md: Connect to Web** and complete Google sign-in in your browser.
+3. Run **Notes.md: Sync with Web** to pull and push notes.
+
+The extension stores its session token in VS Code SecretStorage. Notes are matched by
+their sync IDs and versions; when both copies changed since the last sync, the
+extension keeps the local file and reports the conflict in the **NOTES.md Sync**
+output channel. Review the web copy before resolving such conflicts.
 
 ### Example
 
@@ -56,12 +69,14 @@ No additional dependencies or configuration are required.
 
 ## Extension Settings
 
-This extension does not currently contribute any VS Code settings.
+- `notes-md.webBaseUrl`: Base URL for the web app. Defaults to
+  `http://localhost:3000`; non-local URLs must use HTTPS.
 
 ## Known Issues
 
 - Notes are currently associated with the first workspace folder when using a multi-root workspace.
-- Notes are stored locally and are not synchronized between different computers.
+- Synchronization is manual; run **Notes.md: Sync with Web** after editing notes.
+- `GLOBAL.md` and `NOTES.md` are protected local files and are not removed when deleted from the web app.
 
 ## Release Notes
 
@@ -119,7 +134,8 @@ notes-md/
 │   ├── notes/
 │   │   ├── NoteItem.ts
 │   │   ├── NotesManager.ts
-│   │   └── NotesProvider.ts
+│   │   ├── NotesProvider.ts
+│   │   └── SyncManager.ts
 │   └── utils/
 │       └── projectId.ts
 ├── package.json

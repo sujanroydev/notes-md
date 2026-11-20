@@ -66,14 +66,38 @@
         "command": "notes-md.deleteNote",
         "title": "Notes.md: Delete Note",
         "icon": "$(trash)"
+      },
+      {
+        "command": "notes-md.signIn",
+        "title": "Notes.md: Connect to Web"
+      },
+      {
+        "command": "notes-md.sync",
+        "title": "Notes.md: Sync with Web",
+        "icon": "$(sync)"
       }
     ],
+    "configuration": {
+      "title": "NOTES.md",
+      "properties": {
+        "notes-md.webBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Base URL of the NOTES.md web app used for account linking and note synchronization."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {
           "command": "notes-md.createNote",
           "when": "view == notesMd.view",
           "group": "navigation"
+        },
+        {
+          "command": "notes-md.sync",
+          "when": "view == notesMd.view",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [

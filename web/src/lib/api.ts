@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export interface WorkProject {
   id: string;
   userId: string;
@@ -34,18 +32,29 @@ export interface CreateNoteInput {
 }
 
 export interface SyncRequest {
-  baseVersion: number;
-  localChanges: SyncChange[];
-  localDeletions: string[];
-  localCreates: string[];
+  changes: SyncChange[];
 }
 
 export interface SyncChange {
   id: string;
-  type: "create" | "update" | "delete";
-  content: string;
-  version: number;
-  contentHash: string | null;
+  type: "upsert" | "delete";
+  projectId: string | null;
+  name: string;
+  noteType: "global" | "project_default" | "regular";
+  content?: string;
+  baseVersion: number;
+  baseContentHash: string | null;
+}
+
+export interface SyncConflict {
+  id: string;
+  reason: string;
+  remote: WorkNote | null;
+}
+
+export interface SyncResult {
+  synced: WorkNote[];
+  conflicts: SyncConflict[];
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_BASE_URL;
@@ -235,20 +244,45 @@ export async function deleteNote(
 
 export async function syncNotes(
   request: SyncRequest
-): Promise<{ synced: string[]; conflicts: any[]; deleted: string[] }> {
+): Promise<SyncResult> {
   const res = await fetch(`${API_BASE}/api/sync`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(await apiAuthHeaders()),
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      changes: request.changes.map((change) => ({
+        id: change.id,
+        type: change.type,
+        project_id: change.projectId,
+        name: change.name,
+        note_type: change.noteType,
+        content: change.content,
+        base_version: change.baseVersion,
+        base_content_hash: change.baseContentHash,
+      })),
+    }),
   });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Sync failed: ${txt}`);
   }
   return res.json();
+}
+
+export async function getSyncNotes(projectId?: string): Promise<WorkNote[]> {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  const res = await fetch(`${API_BASE}/api/sync${query}`, {
+    headers: await apiAuthHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Failed to fetch sync notes: ${txt}`);
+  }
+  const result: { notes: WorkNote[] } = await res.json();
+  return result.notes;
 }
 
 export async function listTrashedNotes(): Promise<WorkNote[]> {

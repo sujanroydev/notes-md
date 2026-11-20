@@ -115,22 +115,81 @@ export const DeleteNoteInputSchema = z.object({
   contentHash: z.string().nullable().optional(),
 });
 
+export const SyncChangeSchema = z
+  .object({
+    id: z.string().uuid(),
+    type: z.enum(["upsert", "delete"]),
+    project_id: z.string().uuid().nullable(),
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(/^[a-zA-Z0-9 _.&-]+$/),
+    note_type: NoteTypeSchema,
+    content: z.string().max(10 * 1024 * 1024).optional(),
+    base_version: z.number().int().nonnegative(),
+    base_content_hash: z.string().nullable(),
+  })
+  .superRefine((change, context) => {
+    if (change.type === "upsert" && change.content === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["content"],
+        message: "Content is required for an upsert",
+      });
+    }
+    if (change.type === "delete" && change.base_version === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["base_version"],
+        message: "A delete requires an existing remote version",
+      });
+    }
+    if (
+      change.type === "upsert" &&
+      change.base_version === 0 &&
+      change.base_content_hash !== null
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["base_content_hash"],
+        message: "A new note must not have a base content hash",
+      });
+    }
+    if (
+      change.note_type === "project_default" &&
+      change.project_id === null
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["project_id"],
+        message: "Project-default notes require a project",
+      });
+    }
+    if (change.note_type === "global" && change.project_id !== null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["project_id"],
+        message: "Global notes cannot belong to a project",
+      });
+    }
+  });
+
 export const SyncRequestSchema = z.object({
-  baseVersion: z.bigint().optional(),
-  localChanges: z.array(
-    z.object({
-      type: z.enum(["create", "update", "delete"]),
-      id: z.string().uuid(),
-      project_id: z.string().uuid().nullable(),
-      name: z.string(),
-      note_type: NoteTypeSchema,
-      content: z.string().optional(),
-      version: z.bigint().optional(),
-      content_hash: z.string().optional(),
-    }),
-  ),
-  localDeletions: z.array(z.string().uuid()).optional(),
-  localCreates: z.array(z.string().uuid()).optional(),
+  changes: z.array(SyncChangeSchema).max(100),
+}).superRefine((request, context) => {
+  const ids = new Set<string>();
+  request.changes.forEach((change, index) => {
+    if (ids.has(change.id)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["changes", index, "id"],
+        message: "A note may only appear once per sync request",
+      });
+    }
+    ids.add(change.id);
+  });
 });
 
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>;
@@ -138,4 +197,5 @@ export type RenameProjectInput = z.infer<typeof RenameProjectInputSchema>;
 export type CreateNoteInput = z.infer<typeof CreateNoteInputSchema>;
 export type UpdateNoteContent = z.infer<typeof UpdateNoteContentSchema>;
 export type RenameNoteInput = z.infer<typeof RenameNoteInputSchema>;
+export type SyncChange = z.infer<typeof SyncChangeSchema>;
 export type SyncRequest = z.infer<typeof SyncRequestSchema>;

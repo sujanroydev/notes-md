@@ -3,9 +3,11 @@ import * as vscode from "vscode";
 import { NoteItem } from "./notes/NoteItem";
 import { NotesManager } from "./notes/NotesManager";
 import { NotesProvider } from "./notes/NotesProvider";
+import { SyncManager } from "./notes/SyncManager";
 
 export function activate(context: vscode.ExtensionContext) {
   const notesManager = new NotesManager(context);
+  const syncManager = new SyncManager(context, notesManager);
   const provider = new NotesProvider(notesManager);
 
   const treeView = vscode.window.createTreeView("notesMd.view", {
@@ -105,6 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      await syncManager.noteRenamed(uri, newUri);
       provider.refresh();
 
       if (wasOpen) {
@@ -162,13 +165,38 @@ export function activate(context: vscode.ExtensionContext) {
     provider.refresh();
   });
 
+  const signIn = vscode.commands.registerCommand(
+    "notes-md.signIn",
+    async () => {
+      try {
+        await syncManager.signIn();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Could not connect NOTES.md: ${message}`);
+      }
+    },
+  );
+
+  const sync = vscode.commands.registerCommand("notes-md.sync", async () => {
+    try {
+      await syncManager.sync();
+      provider.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(`Could not sync NOTES.md: ${message}`);
+    }
+  });
+
   context.subscriptions.push(
     treeView,
     createNote,
     openNote,
     renameNote,
     deleteNote,
+    signIn,
+    sync,
     workspaceChange,
+    syncManager,
   );
 }
 
