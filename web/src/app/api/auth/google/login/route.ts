@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const { searchParams } = requestUrl;
   const pairingId = searchParams.get("pairing_id") ?? null;
 
-  if (pairingId && pairingId.length > 256) {
+  if (pairingId && (pairingId.length < 32 || pairingId.length > 256)) {
     return NextResponse.json({ error: "Invalid pairing_id" }, { status: 400 });
   }
 

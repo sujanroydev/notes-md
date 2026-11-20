@@ -23,8 +23,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const pairingId = searchParams.get("pairing_id");
 
-  if (!pairingId) {
-    return noStoreJson({ error: "Missing pairing_id" }, 400);
+  if (!pairingId || pairingId.length < 32 || pairingId.length > 256) {
+    return noStoreJson({ error: "Invalid pairing_id" }, 400);
   }
 
   const now = new Date().toISOString();
