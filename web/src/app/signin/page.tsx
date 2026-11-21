@@ -7,6 +7,7 @@ const AUTH_ERRORS: Record<string, string> = {
   no_id_token: "Google did not provide an identity token. Please try again.",
   oauth_failed: "Sign-in could not be completed. Please try again.",
   oauth_unavailable: "Google sign-in is currently unavailable. Please contact the site administrator.",
+  database_unavailable: "Google verified your account, but NOTES.md could not save it. Please try again later or contact the site administrator.",
   session_expired: "Your session has expired. Please sign in again.",
 };
 

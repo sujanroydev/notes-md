@@ -96,7 +96,8 @@ export async function GET(request: Request) {
       .single();
 
     if (userError) {
-      throw new Error(`Failed to save authenticated user: ${userError.message}`);
+      console.error("Failed to save authenticated user:", userError);
+      return authRedirect(baseUrl, "/signin", "database_unavailable");
     }
 
     const token = await createSession(user.id);
