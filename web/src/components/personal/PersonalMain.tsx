@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { showToast } from "@/components/ui/toast";
+import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import { cn } from "@/lib/utils";
 import {
   createPersonalFolder,
@@ -362,6 +363,7 @@ export function PersonalMain() {
         <span className="hidden text-xs text-muted-foreground md:inline">
           Stored only in this browser
         </span>
+        <ModeSwitcher mode="personal" />
         <Button
           variant="ghost"
           size="icon"

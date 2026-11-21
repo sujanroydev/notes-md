@@ -57,104 +57,92 @@ export interface SyncResult {
   conflicts: SyncConflict[];
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_BASE_URL;
-
-export async function apiAuthHeaders(): Promise<Record<string, string>> {
-  // Try cookie first, then Authorization header
-  const cookieStore = await import("next/headers").then((m) => m.cookies());
-  const token = cookieStore.get("notes-md-session")?.value;
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
+async function failureMessage(res: Response): Promise<string> {
+  const responseText = await res.text();
+  if (!responseText) {
+    return `Request failed with status ${res.status}`;
   }
-  // Fallback: the session can also come from the VS Code context.secrets
-  // We don't have access to that here; let the caller decide.
-  return {};
+  try {
+    const body = JSON.parse(responseText) as { error?: unknown };
+    if (typeof body.error === "string") {
+      return body.error;
+    }
+  } catch {
+    // Keep a useful response body when the server does not return JSON.
+  }
+  return responseText;
 }
 
 export async function listProjects(): Promise<WorkProject[]> {
-  const res = await fetch(`${API_BASE}/api/work/projects`, {
-    headers: await apiAuthHeaders(),
-  });
+  const res = await fetch("/api/work/projects", { cache: "no-store" });
   if (!res.ok) {
-    throw new Error("Failed to list projects");
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function createProject(name: string): Promise<WorkProject> {
-  const res = await fetch(`${API_BASE}/api/work/projects`, {
+  const res = await fetch("/api/work/projects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({ name }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to create project: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function renameProject(id: string, name: string): Promise<WorkProject> {
-  const res = await fetch(`${API_BASE}/api/work/projects/${id}`, {
+  const res = await fetch(`/api/work/projects/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({ name }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to rename project: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/work/projects/${id}`, {
+  const res = await fetch(`/api/work/projects/${id}`, {
     method: "DELETE",
-    headers: await apiAuthHeaders(),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to delete project: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
 }
 
 export async function restoreProject(id: string): Promise<WorkProject> {
-  const res = await fetch(`${API_BASE}/api/work/projects/${id}/restore`, {
+  const res = await fetch(`/api/work/projects/${id}/restore`, {
     method: "POST",
-    headers: await apiAuthHeaders(),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to restore project: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function listNotes(projectId?: string): Promise<WorkNote[]> {
   const url = projectId
-    ? `${API_BASE}/api/work/notes?projectId=${projectId}`
-    : `${API_BASE}/api/work/notes`;
-  const res = await fetch(url, {
-    headers: await apiAuthHeaders(),
-  });
+    ? `/api/work/notes?projectId=${encodeURIComponent(projectId)}`
+    : "/api/work/notes";
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
-    throw new Error("Failed to list notes");
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function getNote(id: string): Promise<WorkNote> {
-  const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
-    headers: await apiAuthHeaders(),
-  });
+  const res = await fetch(`/api/work/notes/${id}`);
   if (!res.ok) {
-    throw new Error("Failed to get note");
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
@@ -162,11 +150,10 @@ export async function getNote(id: string): Promise<WorkNote> {
 export async function createNote(
   data: CreateNoteInput
 ): Promise<WorkNote> {
-  const res = await fetch(`${API_BASE}/api/work/notes`, {
+  const res = await fetch("/api/work/notes", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({
       project_id: data.projectId,
@@ -175,8 +162,7 @@ export async function createNote(
     }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to create note: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
@@ -187,17 +173,15 @@ export async function updateNote(
   version: number,
   contentHash: string | null
 ): Promise<WorkNote> {
-  const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
+  const res = await fetch(`/api/work/notes/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({ content, version, contentHash }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to update note: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
@@ -208,17 +192,15 @@ export async function renameNote(
   version?: number,
   contentHash?: string | null,
 ): Promise<WorkNote> {
-  const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
+  const res = await fetch(`/api/work/notes/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({ name, version, contentHash }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to rename note: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
@@ -228,28 +210,25 @@ export async function deleteNote(
   version: number,
   contentHash: string | null
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/work/notes/${id}`, {
+  const res = await fetch(`/api/work/notes/${id}`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({ version, contentHash }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to delete note: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
 }
 
 export async function syncNotes(
   request: SyncRequest
 ): Promise<SyncResult> {
-  const res = await fetch(`${API_BASE}/api/sync`, {
+  const res = await fetch("/api/sync", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(await apiAuthHeaders()),
     },
     body: JSON.stringify({
       changes: request.changes.map((change) => ({
@@ -265,43 +244,36 @@ export async function syncNotes(
     }),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Sync failed: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function getSyncNotes(projectId?: string): Promise<WorkNote[]> {
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-  const res = await fetch(`${API_BASE}/api/sync${query}`, {
-    headers: await apiAuthHeaders(),
+  const res = await fetch(`/api/sync${query}`, {
     cache: "no-store",
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to fetch sync notes: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
   const result: { notes: WorkNote[] } = await res.json();
   return result.notes;
 }
 
 export async function listTrashedNotes(): Promise<WorkNote[]> {
-  const res = await fetch(`${API_BASE}/api/work/notes?trashed=true`, {
-    headers: await apiAuthHeaders(),
-  });
+  const res = await fetch("/api/work/notes?trashed=true");
   if (!res.ok) {
-    throw new Error("Failed to list trashed notes");
+    throw new Error(await failureMessage(res));
   }
   return res.json();
 }
 
 export async function restoreNote(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/work/notes/${id}/restore`, {
+  const res = await fetch(`/api/work/notes/${id}/restore`, {
     method: "POST",
-    headers: await apiAuthHeaders(),
   });
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Failed to restore note: ${txt}`);
+    throw new Error(await failureMessage(res));
   }
 }

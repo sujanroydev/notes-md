@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { showToast } from "@/components/ui/toast";
+import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import {
   movePersonalNoteToTrash,
   PERSONAL_DB,
@@ -224,6 +225,7 @@ export default function PersonalNotePage() {
                   : `Saved ${new Date(note.updatedAt).toLocaleTimeString()}`}
           </p>
         </div>
+        <ModeSwitcher mode="personal" />
         <Button
           variant={draft.favorite ? "default" : "outline"}
           size="sm"

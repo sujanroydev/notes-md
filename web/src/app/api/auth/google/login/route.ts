@@ -16,35 +16,42 @@ const OAUTH_COOKIE_OPTIONS = {
 };
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url);
-  const { searchParams } = requestUrl;
-  const pairingId = searchParams.get("pairing_id") ?? null;
+  try {
+    const requestUrl = new URL(request.url);
+    const { searchParams } = requestUrl;
+    const pairingId = searchParams.get("pairing_id") ?? null;
 
-  if (pairingId && (pairingId.length < 32 || pairingId.length > 256)) {
-    return NextResponse.json({ error: "Invalid pairing_id" }, { status: 400 });
-  }
+    if (pairingId && (pairingId.length < 32 || pairingId.length > 256)) {
+      return NextResponse.json({ error: "Invalid pairing_id" }, { status: 400 });
+    }
 
-  const baseUrl = getAppBaseUrl(request.url);
-  const state = crypto.randomUUID();
-  const nonce = crypto.randomUUID();
-  const url = buildGoogleAuthUrl({
-    state,
-    nonce,
-    redirectUri: getGoogleCallbackUrl(baseUrl),
-  });
-
-  const response = NextResponse.redirect(url);
-  response.headers.set("Cache-Control", "no-store");
-  response.cookies.set("oauth_state", state, OAUTH_COOKIE_OPTIONS);
-  response.cookies.set("oauth_nonce", nonce, OAUTH_COOKIE_OPTIONS);
-  if (pairingId) {
-    response.cookies.set("pending_pairing_id", pairingId, OAUTH_COOKIE_OPTIONS);
-  } else {
-    response.cookies.set("pending_pairing_id", "", {
-      ...OAUTH_COOKIE_OPTIONS,
-      maxAge: 0,
-      expires: new Date(0),
+    const baseUrl = getAppBaseUrl(request.url);
+    const state = crypto.randomUUID();
+    const nonce = crypto.randomUUID();
+    const url = buildGoogleAuthUrl({
+      state,
+      nonce,
+      redirectUri: getGoogleCallbackUrl(baseUrl),
     });
+
+    const response = NextResponse.redirect(url);
+    response.headers.set("Cache-Control", "no-store");
+    response.cookies.set("oauth_state", state, OAUTH_COOKIE_OPTIONS);
+    response.cookies.set("oauth_nonce", nonce, OAUTH_COOKIE_OPTIONS);
+    if (pairingId) {
+      response.cookies.set("pending_pairing_id", pairingId, OAUTH_COOKIE_OPTIONS);
+    } else {
+      response.cookies.set("pending_pairing_id", "", {
+        ...OAUTH_COOKIE_OPTIONS,
+        maxAge: 0,
+        expires: new Date(0),
+      });
+    }
+    return response;
+  } catch (error) {
+    console.error("Could not start Google OAuth:", error);
+    const response = NextResponse.redirect(new URL("/signin?error=oauth_unavailable", request.url));
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   }
-  return response;
 }
