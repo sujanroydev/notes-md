@@ -70,7 +70,7 @@ No additional dependencies or configuration are required.
 ## Extension Settings
 
 - `notes-md.webBaseUrl`: Base URL for the web app. Defaults to
-  `http://localhost:3000`; non-local URLs must use HTTPS.
+  `https://notesmdweb.vercel.app`; non-local URLs must use HTTPS.
 
 ## Known Issues
 

@@ -82,7 +82,7 @@
       "properties": {
         "notes-md.webBaseUrl": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "https://notesmdweb.vercel.app",
           "description": "Base URL of the NOTES.md web app used for account linking and note synchronization."
         }
       }

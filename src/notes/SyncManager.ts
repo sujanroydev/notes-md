@@ -119,9 +119,7 @@ function fileNameForRemote(note: RemoteNote): string {
 
 function isLoopbackHost(hostname: string): boolean {
   return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "[::1]"
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
   );
 }
 
@@ -143,7 +141,9 @@ export class SyncManager {
     const loginUrl = new URL("/api/auth/google/login", baseUrl);
     loginUrl.searchParams.set("pairing_id", pairingId);
 
-    const opened = await vscode.env.openExternal(vscode.Uri.parse(loginUrl.toString()));
+    const opened = await vscode.env.openExternal(
+      vscode.Uri.parse(loginUrl.toString()),
+    );
     if (!opened) {
       throw new Error("Could not open the sign-in page in a browser.");
     }
@@ -168,10 +168,10 @@ export class SyncManager {
             ),
             { cache: "no-store" },
           );
-          const result = await this.readJson<{ status: string; token?: string }>(
-            response,
-            "Could not check the sign-in status",
-          );
+          const result = await this.readJson<{
+            status: string;
+            token?: string;
+          }>(response, "Could not check the sign-in status");
 
           if (result.status === "linked" && result.token) {
             await this.context.secrets.store(ACCESS_TOKEN_SECRET, result.token);
@@ -229,7 +229,9 @@ export class SyncManager {
         const remoteResult = await this.getJson<{ notes: RemoteNote[] }>(
           `/api/sync?projectId=${encodeURIComponent(remoteProjectId)}`,
         );
-        const remoteById = new Map(remoteResult.notes.map((note) => [note.id, note]));
+        const remoteById = new Map(
+          remoteResult.notes.map((note) => [note.id, note]),
+        );
         const localUris = await this.notesManager.listNotes();
         const localNotes = await Promise.all(
           localUris.map((uri) => this.readLocalNote(uri, remoteProjectId)),
@@ -240,7 +242,10 @@ export class SyncManager {
 
         const stateKey = `${NOTE_STATE_PREFIX}${session.user.id}.${getProjectId(workspace)}`;
         const state = {
-          ...this.context.globalState.get<Record<string, SyncMetadata>>(stateKey, {}),
+          ...this.context.globalState.get<Record<string, SyncMetadata>>(
+            stateKey,
+            {},
+          ),
         };
         const changes: SyncChange[] = [];
         const localForChange = new Map<string, LocalNote>();
@@ -251,11 +256,15 @@ export class SyncManager {
 
         for (const local of localNotes) {
           if (!isValidSyncName(local.name)) {
-            conflicts.push(`${local.name}: this name is not supported by web sync`);
+            conflicts.push(
+              `${local.name}: this name is not supported by web sync`,
+            );
             continue;
           }
           if (Buffer.byteLength(local.content, "utf8") > 10 * 1024 * 1024) {
-            conflicts.push(`${local.name}: note exceeds the 10 MB web sync limit`);
+            conflicts.push(
+              `${local.name}: note exceeds the 10 MB web sync limit`,
+            );
             continue;
           }
 
@@ -264,12 +273,16 @@ export class SyncManager {
           if (metadata) {
             const remote = remoteById.get(metadata.id);
             if (!remote) {
-              conflicts.push(`${local.name}: the linked web note was not found`);
+              conflicts.push(
+                `${local.name}: the linked web note was not found`,
+              );
               continue;
             }
             handledRemoteIds.add(remote.id);
             if (!isValidSyncName(localNameFromRemote(remote))) {
-              conflicts.push(`${local.name}: the web note name is not supported`);
+              conflicts.push(
+                `${local.name}: the web note name is not supported`,
+              );
               continue;
             }
 
@@ -324,7 +337,9 @@ export class SyncManager {
                 projectStorage,
               );
               if (!appliedUri) {
-                conflicts.push(`${local.name}: another local file has that name`);
+                conflicts.push(
+                  `${local.name}: another local file has that name`,
+                );
                 continue;
               }
               delete state[localKey];
@@ -351,7 +366,8 @@ export class SyncManager {
               note.projectId === local.projectId &&
               note.noteType === local.noteType &&
               (note.noteType === "regular"
-                ? localNameFromRemote(note).toLowerCase() === local.name.toLowerCase()
+                ? localNameFromRemote(note).toLowerCase() ===
+                  local.name.toLowerCase()
                 : localNameFromRemote(note) === local.name),
           );
           if (match) {
@@ -359,7 +375,9 @@ export class SyncManager {
             if (match.content === local.content) {
               state[localKey] = this.metadataFromRemote(match, local);
             } else {
-              conflicts.push(`${local.name}: a web note with this name differs`);
+              conflicts.push(
+                `${local.name}: a web note with this name differs`,
+              );
             }
             continue;
           }
@@ -406,16 +424,23 @@ export class SyncManager {
             continue;
           }
           if (!isValidSyncName(localNameFromRemote(remote))) {
-            conflicts.push(`${remote.name}: the web note name is not supported`);
+            conflicts.push(
+              `${remote.name}: the web note name is not supported`,
+            );
             continue;
           }
           const target = this.localUriForRemote(remote, projectStorage);
           const existing = localByUri.get(target.toString());
           if (existing) {
             if (existing.content === remote.content) {
-              state[target.toString()] = this.metadataFromRemote(remote, existing);
+              state[target.toString()] = this.metadataFromRemote(
+                remote,
+                existing,
+              );
             } else {
-              conflicts.push(`${existing.name}: a web note with this name differs`);
+              conflicts.push(
+                `${existing.name}: a web note with this name differs`,
+              );
             }
             handledRemoteIds.add(remote.id);
             continue;
@@ -433,7 +458,10 @@ export class SyncManager {
             projectId: remote.projectId,
             noteType: remote.noteType,
           };
-          state[target.toString()] = this.metadataFromRemote(remote, pulledLocal);
+          state[target.toString()] = this.metadataFromRemote(
+            remote,
+            pulledLocal,
+          );
           localByUri.set(target.toString(), pulledLocal);
           remoteChangesApplied++;
         }
@@ -450,7 +478,10 @@ export class SyncManager {
           for (const note of result.synced) {
             const local = localForChange.get(note.id);
             if (local && note.deletedAt === null) {
-              state[local.uri.toString()] = this.metadataFromRemote(note, local);
+              state[local.uri.toString()] = this.metadataFromRemote(
+                note,
+                local,
+              );
             } else {
               for (const [key, metadata] of Object.entries(state)) {
                 if (metadata.id === note.id) {
@@ -472,7 +503,10 @@ export class SyncManager {
                 continue;
               }
               delete state[localUri.toString()];
-              const target = this.localUriForRemote(item.remote, projectStorage);
+              const target = this.localUriForRemote(
+                item.remote,
+                projectStorage,
+              );
               if (await this.fileExists(target)) {
                 conflicts.push(
                   `${item.remote.name}: ${item.reason}; a local file already exists`,
@@ -495,7 +529,9 @@ export class SyncManager {
                   restored,
                 );
                 remoteChangesApplied++;
-                conflicts.push(`${restored.name}: ${item.reason}; web copy restored`);
+                conflicts.push(
+                  `${restored.name}: ${item.reason}; web copy restored`,
+                );
               }
             } else {
               conflicts.push(`${item.id}: ${item.reason}`);
@@ -512,14 +548,16 @@ export class SyncManager {
           this.output.appendLine(`Conflict: ${conflict}`);
         }
         if (conflicts.length > 0) {
-          vscode.window.showWarningMessage(
-            `Sync finished with ${conflicts.length} conflict(s). Local files were preserved.`,
-            "Show Sync Output",
-          ).then((selection) => {
-            if (selection === "Show Sync Output") {
-              this.output.show();
-            }
-          });
+          vscode.window
+            .showWarningMessage(
+              `Sync finished with ${conflicts.length} conflict(s). Local files were preserved.`,
+              "Show Sync Output",
+            )
+            .then((selection) => {
+              if (selection === "Show Sync Output") {
+                this.output.show();
+              }
+            });
         } else {
           vscode.window.showInformationMessage(
             `NOTES.md sync complete: ${syncedCount} change(s) sent, ${remoteChangesApplied} web change(s) applied.`,
@@ -534,7 +572,8 @@ export class SyncManager {
       if (!key.startsWith(NOTE_STATE_PREFIX)) {
         continue;
       }
-      const state = this.context.globalState.get<Record<string, SyncMetadata>>(key);
+      const state =
+        this.context.globalState.get<Record<string, SyncMetadata>>(key);
       if (!state?.[oldUri.toString()]) {
         continue;
       }
@@ -548,13 +587,15 @@ export class SyncManager {
   private getBaseUrl(): URL {
     const configured = vscode.workspace
       .getConfiguration("notes-md")
-      .get<string>("webBaseUrl", "http://localhost:3000");
+      .get<string>("webBaseUrl", "https://notesmdweb.vercel.app");
     const url = new URL(configured);
     if (
       url.protocol !== "https:" &&
       !(url.protocol === "http:" && isLoopbackHost(url.hostname))
     ) {
-      throw new Error("The web URL must use HTTPS (HTTP is allowed for localhost).");
+      throw new Error(
+        "The web URL must use HTTPS (HTTP is allowed for localhost).",
+      );
     }
     return new URL(url.origin);
   }
@@ -626,7 +667,9 @@ export class SyncManager {
   ): vscode.Uri {
     const fileName = fileNameForRemote(note);
     const parent =
-      note.noteType === "global" ? this.context.globalStorageUri : projectStorage;
+      note.noteType === "global"
+        ? this.context.globalStorageUri
+        : projectStorage;
     return vscode.Uri.joinPath(parent, fileName);
   }
 
@@ -640,9 +683,14 @@ export class SyncManager {
       if (await this.fileExists(target)) {
         return null;
       }
-      await vscode.workspace.fs.rename(currentUri, target, { overwrite: false });
+      await vscode.workspace.fs.rename(currentUri, target, {
+        overwrite: false,
+      });
     }
-    await vscode.workspace.fs.writeFile(target, Buffer.from(note.content, "utf8"));
+    await vscode.workspace.fs.writeFile(
+      target,
+      Buffer.from(note.content, "utf8"),
+    );
     return target;
   }
 
@@ -733,7 +781,10 @@ export class SyncManager {
     });
   }
 
-  private async readJson<T>(response: Response, errorMessage: string): Promise<T> {
+  private async readJson<T>(
+    response: Response,
+    errorMessage: string,
+  ): Promise<T> {
     if (!response.ok) {
       const detail = await response.text();
       throw new Error(`${errorMessage} (${response.status}): ${detail}`);
