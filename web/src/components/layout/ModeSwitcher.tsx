@@ -22,6 +22,7 @@ export function ModeSwitcher({ mode, user }: ModeSwitcherProps) {
       if (!response.ok) {
         throw new Error("The session could not be ended.");
       }
+      navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_PAGE_CACHE" });
       router.replace("/signin");
       router.refresh();
     } catch (error) {
