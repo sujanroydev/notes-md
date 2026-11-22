@@ -1,14 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
 import { Providers } from "./providers";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
   title: "NOTES.md",
@@ -27,9 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
+      <body className="antialiased">
         <Providers>
-          <div className="flex h-screen overflow-hidden">
+          <div className="flex h-dvh min-h-0 w-full overflow-hidden">
             {children}
           </div>
           <Toaster />

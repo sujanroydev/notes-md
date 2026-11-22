@@ -22,6 +22,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             "hover:bg-accent hover:text-accent-foreground",
           variant === "destructive" &&
             "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          size === "default" && "h-9 px-4",
           size === "sm" && "h-8 px-3 text-xs",
           size === "lg" && "h-10 px-4",
           size === "icon" && "h-9 w-9",

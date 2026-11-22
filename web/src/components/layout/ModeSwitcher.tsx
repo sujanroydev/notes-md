@@ -45,7 +45,7 @@ export function ModeSwitcher({ mode, user }: ModeSwitcherProps) {
         onClick={() => router.push("/personal")}
       >
         <Globe className="h-4 w-4" />
-        Personal
+        <span className="hidden sm:inline">Personal</span>
       </Button>
       <Button
         type="button"
@@ -55,7 +55,7 @@ export function ModeSwitcher({ mode, user }: ModeSwitcherProps) {
         onClick={() => router.push("/")}
       >
         <Folder className="h-4 w-4" />
-        Work
+        <span className="hidden sm:inline">Work</span>
       </Button>
       {mode === "work" && user && (
         <>
@@ -71,7 +71,7 @@ export function ModeSwitcher({ mode, user }: ModeSwitcherProps) {
             aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
-            Sign out
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         </>
       )}

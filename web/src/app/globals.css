@@ -53,8 +53,20 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    min-width: 320px;
+    min-height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
   }
 }

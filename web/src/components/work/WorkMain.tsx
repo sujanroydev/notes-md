@@ -185,12 +185,25 @@ export function WorkMain({ user }: WorkMainProps) {
             className="pl-9"
           />
         </div>
-        <Badge variant="work">Work · Supabase</Badge>
+        <Badge variant="work" className="hidden sm:inline-flex">Work · Supabase</Badge>
+        <select
+          aria-label="Choose project"
+          value={activeProject ?? ""}
+          onChange={(event) => setActiveProject(event.target.value || null)}
+          className="h-9 min-w-36 rounded-md border border-input bg-background px-2 text-sm md:hidden"
+        >
+          <option value="">All Work notes</option>
+          {visibleProjects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
         <ModeSwitcher mode="work" user={user} />
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-muted/20">
+        <aside className="hidden w-52 shrink-0 flex-col border-r border-border bg-muted/20 md:flex lg:w-56 xl:w-64">
           <div className="flex items-center justify-between p-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Projects
@@ -330,7 +343,7 @@ export function WorkMain({ user }: WorkMainProps) {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visibleNotes.map((note) => {
                   const project = projects.find((item) => item.id === note.projectId);
                   return (

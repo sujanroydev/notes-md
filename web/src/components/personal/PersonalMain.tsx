@@ -350,7 +350,7 @@ export function PersonalMain() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-3">
-        <div className="relative min-w-48 flex-1">
+        <div className="relative min-w-36 flex-1 sm:min-w-48">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search title, content, or tags..."
@@ -359,10 +359,22 @@ export function PersonalMain() {
             className="pl-9"
           />
         </div>
-        <Badge variant="personal">Personal</Badge>
+        <Badge variant="personal" className="hidden sm:inline-flex">Personal</Badge>
         <span className="hidden text-xs text-muted-foreground md:inline">
           Stored only in this browser
         </span>
+        <select
+          aria-label="Choose note view"
+          value={view}
+          onChange={(event) => setView(event.target.value as NoteView)}
+          className="h-9 min-w-32 rounded-md border border-input bg-background px-2 text-sm md:hidden"
+        >
+          {viewButtons.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
         <ModeSwitcher mode="personal" />
         <Button
           variant="ghost"
@@ -382,7 +394,7 @@ export function PersonalMain() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-muted/20 md:flex">
+        <aside className="hidden w-52 shrink-0 flex-col border-r border-border bg-muted/20 md:flex lg:w-56 xl:w-64">
           <div className="p-3">
             <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Library
@@ -587,7 +599,7 @@ export function PersonalMain() {
           )}
 
           <ScrollArea className="min-h-0 flex-1">
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filteredNotes.map((note) => {
                 const folder = folders.find((item) => item.id === note.folderId);
                 return (

@@ -13,7 +13,7 @@ export default async function RootPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 w-full overflow-hidden bg-background">
       <WorkMain user={session.user} />
     </div>
   );
