@@ -1,6 +1,10 @@
 .vscode/**
 .vscode-test/**
 src/**
+web/**
+node_modules/.pnpm/**
+pnpm-lock.yaml
+package-lock.json
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
