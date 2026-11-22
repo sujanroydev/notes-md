@@ -2,6 +2,7 @@
 .vscode-test/**
 src/**
 web/**
+supabase/**
 node_modules/.pnpm/**
 pnpm-lock.yaml
 package-lock.json
