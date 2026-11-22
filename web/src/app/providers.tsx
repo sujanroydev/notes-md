@@ -89,7 +89,7 @@ function OfflineNotice() {
       aria-live="polite"
       className="fixed inset-x-0 top-0 z-[100] bg-amber-100 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
     >
-      Offline. Personal notes stay on this device. Work actions require a connection; edits are not queued or synced.
+      Offline. Notes are available locally. Work changes are queued and will sync when the connection returns.
     </div>
   );
 }

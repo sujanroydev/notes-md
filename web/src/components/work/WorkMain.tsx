@@ -16,18 +16,29 @@ import { Input } from "@/components/ui/input";
 import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import { showToast } from "@/components/ui/toast";
 import {
-  createNote,
-  createProject,
-  deleteProject,
   listNotes,
   listProjects,
-  renameProject,
   type WorkNote,
   type WorkProject,
 } from "@/lib/api";
+import {
+  cacheWorkNotes,
+  cacheWorkProjects,
+  deleteCachedProject,
+  listCachedNotes,
+  listCachedProjects,
+  localNote,
+  localProject,
+  queueNoteUpsert,
+  queueProjectDelete,
+  queueProjectUpsert,
+  saveCachedNote,
+  saveCachedProject,
+} from "@/stores/workDb";
+import { refreshRemoteWork, syncWorkNow } from "@/lib/workSync";
 
 interface WorkMainProps {
-  user: { name: string | null; email: string | null };
+  user: { id: string; name: string | null; email: string | null };
 }
 
 function messageOf(error: unknown): string {
@@ -48,27 +59,35 @@ export function WorkMain({ user }: WorkMainProps) {
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     setProjectError(null);
+    setProjects(await listCachedProjects(user.id));
     try {
-      setProjects(await listProjects());
+      const remoteProjects = await listProjects();
+      await cacheWorkProjects(remoteProjects);
+      setProjects(await listCachedProjects(user.id));
+      await syncWorkNow();
     } catch (error) {
       setProjectError(messageOf(error));
     } finally {
       setProjectsLoading(false);
     }
-  }, []);
+  }, [user.id]);
 
   const loadNotes = useCallback(async () => {
     setNotesLoading(true);
     setNoteError(null);
+    setNotes(await listCachedNotes(user.id));
     try {
-      setNotes(await listNotes(activeProject ?? undefined));
+      const remoteNotes = await listNotes(activeProject ?? undefined);
+      await cacheWorkNotes(remoteNotes);
+      setNotes(await listCachedNotes(user.id));
+      await syncWorkNow();
     } catch (error) {
       setNoteError(messageOf(error));
-      setNotes([]);
+      setNotes(await listCachedNotes(user.id));
     } finally {
       setNotesLoading(false);
     }
-  }, [activeProject]);
+  }, [activeProject, user.id]);
 
   useEffect(() => {
     void loadProjects();
@@ -78,19 +97,36 @@ export function WorkMain({ user }: WorkMainProps) {
     void loadNotes();
   }, [loadNotes]);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      void refreshRemoteWork(user.id).finally(() => {
+        void syncWorkNow();
+      });
+    };
+    if (navigator.onLine) {
+      void handleOnline();
+    }
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [user.id]);
+
   const handleCreateProject = async () => {
     const name = window.prompt("Project name:");
     if (name === null) return;
+    const project = localProject(user.id, name);
+    await saveCachedProject(project);
+    await queueProjectUpsert(project);
+    setProjects((current) => [...current, project]);
+    setActiveProject(project.id);
     try {
-      const project = await createProject(name);
-      setProjects((current) => [...current, project]);
-      setActiveProject(project.id);
-      showToast({ title: "Project created", variant: "success" });
+      await syncWorkNow();
+      setProjects(await listCachedProjects(user.id));
+      showToast({ title: "Project saved locally", variant: "success" });
     } catch (error) {
       showToast({
-        title: "Could not create project",
+        title: "Project saved locally",
         description: messageOf(error),
-        variant: "error",
+        variant: "success",
       });
     }
   };
@@ -98,17 +134,25 @@ export function WorkMain({ user }: WorkMainProps) {
   const handleRenameProject = async (project: WorkProject) => {
     const name = window.prompt("Project name:", project.name);
     if (name === null) return;
+    const updated = {
+      ...project,
+      name,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveCachedProject(updated);
+    await queueProjectUpsert(updated, project.name);
+    setProjects((current) =>
+      current.map((item) => (item.id === updated.id ? updated : item)),
+    );
     try {
-      const updated = await renameProject(project.id, name);
-      setProjects((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      showToast({ title: "Project renamed", variant: "success" });
+      await syncWorkNow();
+      setProjects(await listCachedProjects(user.id));
+      showToast({ title: "Project rename saved locally", variant: "success" });
     } catch (error) {
       showToast({
-        title: "Could not rename project",
+        title: "Project rename saved locally",
         description: messageOf(error),
-        variant: "error",
+        variant: "success",
       });
     }
   };
@@ -117,18 +161,26 @@ export function WorkMain({ user }: WorkMainProps) {
     if (!window.confirm(`Delete "${project.name}"? Its notes will no longer appear in active projects.`)) {
       return;
     }
+    const deleted = {
+      ...project,
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await saveCachedProject(deleted);
+    await queueProjectDelete(deleted);
+    await deleteCachedProject(project.id);
+    setProjects((current) => current.filter((item) => item.id !== project.id));
+    if (activeProject === project.id) {
+      setActiveProject(null);
+    }
     try {
-      await deleteProject(project.id);
-      setProjects((current) => current.filter((item) => item.id !== project.id));
-      if (activeProject === project.id) {
-        setActiveProject(null);
-      }
-      showToast({ title: "Project moved to Trash", variant: "success" });
+      await syncWorkNow();
+      showToast({ title: "Project moved to Trash locally", variant: "success" });
     } catch (error) {
       showToast({
-        title: "Could not delete project",
+        title: "Project moved to Trash locally",
         description: messageOf(error),
-        variant: "error",
+        variant: "success",
       });
     }
   };
@@ -136,18 +188,17 @@ export function WorkMain({ user }: WorkMainProps) {
   const handleCreateNote = async () => {
     const name = window.prompt("Note name:", "Untitled note");
     if (name === null) return;
+    const note = localNote(user.id, activeProject, name);
+    await saveCachedNote(note);
+    await queueNoteUpsert(note);
+    router.push(`/work/note/${note.id}`);
     try {
-      const note = await createNote({
-        projectId: activeProject,
-        name,
-        noteType: activeProject ? "regular" : "global",
-      });
-      router.push(`/work/note/${note.id}`);
+      await syncWorkNow();
     } catch (error) {
       showToast({
-        title: "Could not create note",
+        title: "Note saved locally",
         description: messageOf(error),
-        variant: "error",
+        variant: "success",
       });
     }
   };

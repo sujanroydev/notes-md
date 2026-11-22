@@ -9,7 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import { showToast } from "@/components/ui/toast";
-import { deleteNote, getNote, renameNote, updateNote, type WorkNote } from "@/lib/api";
+import { getNote, type WorkNote } from "@/lib/api";
+import {
+  deleteCachedNote,
+  getCachedNote,
+  queueNoteDelete,
+  queueNoteUpsert,
+  saveCachedNote,
+  WORK_DB,
+} from "@/stores/workDb";
+import { syncWorkNow } from "@/lib/workSync";
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : "Please try again.";
@@ -18,7 +27,7 @@ function messageOf(error: unknown): string {
 export function WorkNoteEditor({
   user,
 }: {
-  user: { name: string | null; email: string | null };
+  user: { id: string; name: string | null; email: string | null };
 }) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -31,27 +40,31 @@ export function WorkNoteEditor({
 
   useEffect(() => {
     let active = true;
-    void getNote(id)
-      .then((loaded) => {
+    const load = async () => {
+      const cached = await getCachedNote(id);
+      if (!active) return;
+      if (cached) {
+        setNote(cached);
+        setName(cached.name);
+        setContent(cached.content);
+      }
+      try {
+        const loaded = await getNote(id);
         if (active) {
+          await saveCachedNote(loaded);
           setNote(loaded);
           setName(loaded.name);
           setContent(loaded.content);
         }
-      })
-      .catch((error: unknown) => {
-        if (active) {
+      } catch (error: unknown) {
+        if (active && !cached) {
           setSaveError(messageOf(error));
-          if (messageOf(error).toLocaleLowerCase().includes("unauthenticated")) {
-            router.replace("/signin?error=session_expired");
-          }
         }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
     return () => {
       active = false;
     };
@@ -69,29 +82,21 @@ export function WorkNoteEditor({
 
     setSaving(true);
     setSaveError(null);
-    let current = note;
+    const now = new Date().toISOString();
+    const current: WorkNote = {
+      ...note,
+      name,
+      content,
+      updatedAt: now,
+    };
     try {
-      if (content !== current.content) {
-        current = await updateNote(
-          id,
-          content,
-          current.version,
-          current.contentHash,
-        );
-        setNote(current);
-      }
-      if (name !== current.name) {
-        current = await renameNote(
-          id,
-          name,
-          current.version,
-          current.contentHash,
-        );
-        setNote(current);
-      }
+      await saveCachedNote(current);
+      await queueNoteUpsert(current);
+      setNote(current);
       setName(current.name);
       setContent(current.content);
-      showToast({ title: "Work note synced", variant: "success" });
+      showToast({ title: "Work note saved locally", variant: "success" });
+      void syncWorkNow();
       return current;
     } catch (error) {
       const message = messageOf(error);
@@ -121,19 +126,21 @@ export function WorkNoteEditor({
     if (!saved) {
       return;
     }
-    try {
-      await deleteNote(id, saved.version, saved.contentHash);
-      showToast({ title: "Work note moved to Trash", variant: "success" });
-      router.push("/");
-    } catch (error) {
-      const message = messageOf(error);
-      setSaveError(message);
-      showToast({
-        title: "Could not delete Work note",
-        description: message,
-        variant: "error",
-      });
+    if (saved.version === 0) {
+      await deleteCachedNote(id);
+      await WORK_DB.queue.delete(`note-upsert:${id}`);
+    } else {
+      const deleted = {
+        ...saved,
+        deletedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveCachedNote(deleted);
+      await queueNoteDelete(deleted);
     }
+    await syncWorkNow();
+    showToast({ title: "Work note moved to Trash locally", variant: "success" });
+    router.push("/");
   };
 
   if (loading) {
@@ -167,12 +174,12 @@ export function WorkNoteEditor({
           <p className="truncate text-sm font-medium">{name || "Untitled note"}</p>
           <p className="text-xs text-muted-foreground" aria-live="polite">
             {saving
-              ? "Syncing with Supabase…"
+              ? "Saving locally…"
               : saveError
-                ? `Sync failed: ${saveError}`
+                ? `Local save issue: ${saveError}`
                 : dirty
                   ? "Unsaved changes"
-                  : "Synced with Supabase"}
+                  : "Saved locally · Supabase sync pending"}
           </p>
         </div>
         <Badge variant="work">Work</Badge>
@@ -206,7 +213,7 @@ export function WorkNoteEditor({
           className="mx-auto min-h-[50vh] w-full max-w-4xl flex-1 resize-y font-mono text-sm leading-6"
         />
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between text-xs text-muted-foreground">
-          <span>Stored in your Work account</span>
+          <span>Saved on this device · Syncs with your Work account</span>
           <span>{content.length} characters</span>
         </div>
       </main>
