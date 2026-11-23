@@ -125,6 +125,9 @@ function isLoopbackHost(hostname: string): boolean {
 
 export class SyncManager {
   private readonly output = vscode.window.createOutputChannel("NOTES.md Sync");
+  private readonly _onDidChangeSignedIn = new vscode.EventEmitter<boolean>();
+
+  readonly onDidChangeSignedIn = this._onDidChangeSignedIn.event;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -132,7 +135,17 @@ export class SyncManager {
   ) {}
 
   dispose(): void {
+    this._onDidChangeSignedIn.dispose();
     this.output.dispose();
+  }
+
+  async isSignedIn(): Promise<boolean> {
+    return Boolean(await this.context.secrets.get(ACCESS_TOKEN_SECRET));
+  }
+
+  async signOut(): Promise<void> {
+    await this.context.secrets.delete(ACCESS_TOKEN_SECRET);
+    this._onDidChangeSignedIn.fire(false);
   }
 
   async signIn(): Promise<void> {
@@ -175,6 +188,7 @@ export class SyncManager {
 
           if (result.status === "linked" && result.token) {
             await this.context.secrets.store(ACCESS_TOKEN_SECRET, result.token);
+            this._onDidChangeSignedIn.fire(true);
             vscode.window.showInformationMessage("NOTES.md is connected.");
             return;
           }
@@ -753,6 +767,7 @@ export class SyncManager {
     });
     if (!refresh.ok) {
       await this.context.secrets.delete(ACCESS_TOKEN_SECRET);
+      this._onDidChangeSignedIn.fire(false);
       throw new Error("Your NOTES.md session expired. Sign in again.");
     }
     const refreshed = await this.readJson<{ token?: string }>(
@@ -763,6 +778,7 @@ export class SyncManager {
       throw new Error("The server did not return a refreshed session token.");
     }
     await this.context.secrets.store(ACCESS_TOKEN_SECRET, refreshed.token);
+    this._onDidChangeSignedIn.fire(true);
     return this.fetchWithToken(path, refreshed.token, init);
   }
 

@@ -9,6 +9,13 @@ export function activate(context: vscode.ExtensionContext) {
   const notesManager = new NotesManager(context);
   const syncManager = new SyncManager(context, notesManager);
   const provider = new NotesProvider(notesManager);
+  const updateSignedInContext = async () => {
+    await vscode.commands.executeCommand(
+      "setContext",
+      "notesMd.signedIn",
+      await syncManager.isSignedIn(),
+    );
+  };
 
   const treeView = vscode.window.createTreeView("notesMd.view", {
     treeDataProvider: provider,
@@ -177,6 +184,14 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const signOut = vscode.commands.registerCommand(
+    "notes-md.signOut",
+    async () => {
+      await syncManager.signOut();
+      vscode.window.showInformationMessage("NOTES.md has been disconnected.");
+    },
+  );
+
   const sync = vscode.commands.registerCommand("notes-md.sync", async () => {
     try {
       await syncManager.sync();
@@ -184,8 +199,20 @@ export function activate(context: vscode.ExtensionContext) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Could not sync NOTES.md: ${message}`);
+    } finally {
+      await updateSignedInContext();
     }
   });
+
+  const signedInChange = syncManager.onDidChangeSignedIn((signedIn) => {
+    void vscode.commands.executeCommand(
+      "setContext",
+      "notesMd.signedIn",
+      signedIn,
+    );
+  });
+
+  void updateSignedInContext();
 
   context.subscriptions.push(
     treeView,
@@ -194,8 +221,10 @@ export function activate(context: vscode.ExtensionContext) {
     renameNote,
     deleteNote,
     signIn,
+    signOut,
     sync,
     workspaceChange,
+    signedInChange,
     syncManager,
   );
 }

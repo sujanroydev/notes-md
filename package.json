@@ -72,6 +72,11 @@
         "title": "Notes.md: Connect to Web"
       },
       {
+        "command": "notes-md.signOut",
+        "title": "Notes.md: Disconnect from Web",
+        "icon": "$(sign-out)"
+      },
+      {
         "command": "notes-md.sync",
         "title": "Notes.md: Sync with Web",
         "icon": "$(sync)"
@@ -98,6 +103,11 @@
           "command": "notes-md.sync",
           "when": "view == notesMd.view",
           "group": "navigation@2"
+        },
+        {
+          "command": "notes-md.signOut",
+          "when": "view == notesMd.view && notesMd.signedIn",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
