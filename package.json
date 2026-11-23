@@ -2,7 +2,7 @@
   "name": "notes-md",
   "displayName": "NOTES.md - Markdown Notes",
   "description": "A simple Markdown note manager for VS Code",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "sujanroydev",
   "license": "MIT",
   "repository": {
