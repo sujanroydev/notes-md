@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useState,
@@ -43,41 +42,16 @@ function PwaLifecycle() {
 function OfflineNotice() {
   const [online, setOnline] = useState(true);
 
-  const checkConnectivity = useCallback(async () => {
-    if (!navigator.onLine) {
-      setOnline(false);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/health", {
-        cache: "no-store",
-        credentials: "omit",
-      });
-      setOnline(response.ok);
-    } catch {
-      setOnline(false);
-    }
-  }, []);
-
   useEffect(() => {
-    const updateStatus = () => {
-      if (!navigator.onLine) {
-        setOnline(false);
-      } else {
-        void checkConnectivity();
-      }
-    };
+    const updateStatus = () => setOnline(navigator.onLine);
     updateStatus();
-    const interval = window.setInterval(updateStatus, 15000);
     window.addEventListener("online", updateStatus);
     window.addEventListener("offline", updateStatus);
     return () => {
-      window.clearInterval(interval);
       window.removeEventListener("online", updateStatus);
       window.removeEventListener("offline", updateStatus);
     };
-  }, [checkConnectivity]);
+  }, []);
 
   if (online) {
     return null;
