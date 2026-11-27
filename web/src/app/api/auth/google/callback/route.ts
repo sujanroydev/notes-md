@@ -119,7 +119,7 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    const response = NextResponse.redirect(new URL("/", baseUrl));
+    const response = NextResponse.redirect(new URL("/work", baseUrl));
     response.headers.set("Cache-Control", "no-store");
     setSessionCookie(response, token);
     clearOAuthCookies(response);
