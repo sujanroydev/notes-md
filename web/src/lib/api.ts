@@ -81,13 +81,16 @@ export async function listProjects(): Promise<WorkProject[]> {
   return res.json();
 }
 
-export async function createProject(name: string): Promise<WorkProject> {
+export async function createProject(
+  name: string,
+  id?: string,
+): Promise<WorkProject> {
   const res = await fetch("/api/work/projects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, ...(id ? { id } : {}) }),
   });
   if (!res.ok) {
     throw new Error(await failureMessage(res));

@@ -1,24 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { liveQuery } from "dexie";
 import { ArrowLeft, Check, Trash2 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import { showToast } from "@/components/ui/toast";
-import { getNote, type WorkNote } from "@/lib/api";
+import type { WorkNote } from "@/lib/api";
 import {
-  deleteCachedNote,
+  deleteNoteAndQueue,
   getCachedNote,
-  queueNoteDelete,
-  queueNoteUpsert,
-  saveCachedNote,
   WORK_DB,
+  saveNoteAndQueue,
+  type WorkQueueOperation,
 } from "@/stores/workDb";
-import { syncWorkNow } from "@/lib/workSync";
+import { refreshRemoteWork, syncWorkNow } from "@/lib/workSync";
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : "Please try again.";
@@ -26,54 +26,123 @@ function messageOf(error: unknown): string {
 
 export function WorkNoteEditor({
   user,
+  noteId,
+  onClose,
 }: {
   user: { id: string; name: string | null; email: string | null };
+  noteId?: string;
+  onClose?: () => void;
 }) {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = noteId ?? params.id;
   const [note, setNote] = useState<WorkNote | null>(null);
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [queue, setQueue] = useState<WorkQueueOperation[]>([]);
+  const [online, setOnline] = useState(true);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      const cached = await getCachedNote(id);
-      if (!active) return;
-      if (cached) {
-        setNote(cached);
-        setName(cached.name);
-        setContent(cached.content);
-      }
-      try {
-        const loaded = await getNote(id);
+    const subscription = liveQuery(async () => {
+      const [localNote, operations] = await Promise.all([
+        getCachedNote(id, user.id),
+        WORK_DB.queue.toArray(),
+      ]);
+      return {
+        note: localNote,
+        queue: operations.filter(
+          (operation) =>
+            (operation.entity === "note" &&
+              (operation.noteId ?? operation.note.id) === id) ||
+            (operation.entity === "project" && operation.project.userId === user.id),
+        ),
+      };
+    }).subscribe({
+      next: (local) => {
+        if (!active) return;
+        if (local.note && !dirtyRef.current) {
+          setNote(local.note);
+          setName(local.note.name);
+          setContent(local.note.content);
+          setLoading(false);
+        } else if (!local.note && !dirtyRef.current) {
+          setNote(null);
+        }
+        setQueue(local.queue);
+      },
+      error: (error: unknown) => {
         if (active) {
-          await saveCachedNote(loaded);
-          setNote(loaded);
-          setName(loaded.name);
-          setContent(loaded.content);
-        }
-      } catch (error: unknown) {
-        if (active && !cached) {
           setSaveError(messageOf(error));
+          setLoading(false);
         }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void load();
+      },
+    });
+
+    const refresh = (force = false) =>
+      void refreshRemoteWork(user.id, force)
+        .then(() => {
+          if (active) {
+            setSyncError(null);
+          }
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setSyncError(messageOf(error));
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+    refresh();
+    const handleOnline = () => refresh(true);
+    window.addEventListener("online", handleOnline);
     return () => {
       active = false;
+      window.removeEventListener("online", handleOnline);
+      subscription.unsubscribe();
     };
-  }, [id, router]);
+  }, [id, user.id]);
+
+  useEffect(() => {
+    const updateStatus = () => setOnline(navigator.onLine);
+    updateStatus();
+    window.addEventListener("online", updateStatus);
+    window.addEventListener("offline", updateStatus);
+    return () => {
+      window.removeEventListener("online", updateStatus);
+      window.removeEventListener("offline", updateStatus);
+    };
+  }, []);
 
   const dirty = useMemo(
     () => note !== null && (name !== note.name || content !== note.content),
     [content, name, note],
   );
+  dirtyRef.current = dirty;
+
+  const noteQueue = queue.filter(
+    (operation) =>
+      operation.entity === "note" &&
+      (operation.noteId ?? operation.note.id) === id,
+  );
+  const syncStatus = !online
+    ? `Offline · ${noteQueue.length ? "saved locally, sync pending" : "saved locally"}`
+    : noteQueue.some((operation) => operation.status === "syncing")
+      ? "Syncing…"
+      : noteQueue.some((operation) => operation.status === "failed")
+        ? "Sync failed · saved locally"
+        : noteQueue.length
+          ? "Saved locally · sync pending"
+          : syncError
+            ? "Saved locally · sync unavailable"
+            : "Synced with account";
 
   const save = useCallback(async (): Promise<WorkNote | null> => {
     if (!note || !dirty || saving) {
@@ -82,6 +151,7 @@ export function WorkNoteEditor({
 
     setSaving(true);
     setSaveError(null);
+    setSyncError(null);
     const now = new Date().toISOString();
     const current: WorkNote = {
       ...note,
@@ -90,19 +160,20 @@ export function WorkNoteEditor({
       updatedAt: now,
     };
     try {
-      await saveCachedNote(current);
-      await queueNoteUpsert(current);
-      setNote(current);
-      setName(current.name);
-      setContent(current.content);
+      const saved = await saveNoteAndQueue(current);
+      setNote(saved);
+      setName(saved.name);
+      setContent(saved.content);
       showToast({ title: "Work note saved locally", variant: "success" });
-      void syncWorkNow();
-      return current;
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setSyncError(messageOf(error));
+      });
+      return saved;
     } catch (error) {
       const message = messageOf(error);
       setSaveError(message);
       showToast({
-        title: "Could not sync Work note",
+        title: "Could not save Work note locally",
         description: message,
         variant: "error",
       });
@@ -110,11 +181,15 @@ export function WorkNoteEditor({
     } finally {
       setSaving(false);
     }
-  }, [content, dirty, id, name, note, saving]);
+  }, [content, dirty, name, note, saving, user.id]);
 
   const handleBack = async () => {
     if (await save()) {
-      router.push("/");
+      if (onClose) {
+        onClose();
+      } else {
+        window.location.assign("/work");
+      }
     }
   };
 
@@ -126,27 +201,30 @@ export function WorkNoteEditor({
     if (!saved) {
       return;
     }
-    if (saved.version === 0) {
-      await deleteCachedNote(id);
-      await WORK_DB.queue.delete(`note-upsert:${id}`);
-    } else {
-      const deleted = {
-        ...saved,
-        deletedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      await saveCachedNote(deleted);
-      await queueNoteDelete(deleted);
+    try {
+      await deleteNoteAndQueue(saved);
+      showToast({ title: "Work note moved to Trash locally", variant: "success" });
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setSyncError(messageOf(error));
+      });
+      if (onClose) {
+        onClose();
+      } else {
+        window.location.assign("/work");
+      }
+    } catch (error) {
+      showToast({
+        title: "Could not delete Work note locally",
+        description: messageOf(error),
+        variant: "error",
+      });
     }
-    await syncWorkNow();
-    showToast({ title: "Work note moved to Trash locally", variant: "success" });
-    router.push("/");
   };
 
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-        Loading Work note from Supabase…
+        Loading Work note from this device…
       </div>
     );
   }
@@ -157,7 +235,10 @@ export function WorkNoteEditor({
         <p role="alert" className="text-sm text-destructive">
           Could not open this Work note: {saveError ?? "Note not found."}
         </p>
-        <Button variant="outline" onClick={() => router.push("/")}>
+        <Button
+          variant="outline"
+          onClick={() => (onClose ? onClose() : window.location.assign("/work"))}
+        >
           <ArrowLeft className="h-4 w-4" /> Back to Work
         </Button>
       </div>
@@ -179,7 +260,7 @@ export function WorkNoteEditor({
                 ? `Local save issue: ${saveError}`
                 : dirty
                   ? "Unsaved changes"
-                  : "Saved locally · Supabase sync pending"}
+                  : syncStatus}
           </p>
         </div>
         <Badge variant="work">Work</Badge>
@@ -213,14 +294,14 @@ export function WorkNoteEditor({
           className="mx-auto min-h-[50vh] w-full max-w-4xl flex-1 resize-y font-mono text-sm leading-6"
         />
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between text-xs text-muted-foreground">
-          <span>Saved on this device · Syncs with your Work account</span>
+          <span>{syncError ? `Sync issue: ${syncError}` : "Saved on this device · Syncs with your Work account"}</span>
           <span>{content.length} characters</span>
         </div>
       </main>
 
       <footer className="flex justify-end border-t border-border px-4 py-3">
         <Button onClick={() => void save()} disabled={saving || !dirty}>
-          <Check className="h-4 w-4" /> Save to Supabase
+          <Check className="h-4 w-4" /> Save locally
         </Button>
       </footer>
     </div>

@@ -54,6 +54,7 @@ export const WorkNoteSchema = z.object({
 });
 
 export const CreateProjectInputSchema = z.object({
+  id: z.string().uuid().optional(),
   name: z
     .string()
     .trim()
@@ -137,13 +138,6 @@ export const SyncChangeSchema = z
         code: z.ZodIssueCode.custom,
         path: ["content"],
         message: "Content is required for an upsert",
-      });
-    }
-    if (change.type === "delete" && change.base_version === 0) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["base_version"],
-        message: "A delete requires an existing remote version",
       });
     }
     if (

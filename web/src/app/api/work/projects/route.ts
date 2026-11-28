@@ -46,6 +46,7 @@ export const POST = withAuth(async (request, session) => {
   const { data, error } = await supabase
     .from("work_projects")
     .insert({
+      ...(parsed.value.id ? { id: parsed.value.id } : {}),
       user_id: session.user.id,
       name: parsed.value.name.trim(),
     })

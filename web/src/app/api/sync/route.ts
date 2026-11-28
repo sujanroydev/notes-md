@@ -151,6 +151,61 @@ export const POST = withAuth(async (request, session) => {
       }
 
       if (change.base_version === 0) {
+        if (change.type === "delete") {
+          if (!current || current.deleted_at !== null) {
+            if (current) {
+              synced.push(mapNote(current));
+            } else {
+              conflicts.push({
+                id: change.id,
+                reason: "note_not_found",
+                remote: null,
+              });
+            }
+            continue;
+          }
+
+          const currentVersion = Number(current.version);
+          if (!Number.isSafeInteger(currentVersion)) {
+            return privateJson({ error: "Stored note version is invalid" }, 500);
+          }
+          const now = new Date().toISOString();
+          const { data, error } = await supabase
+            .from("work_notes")
+            .update({
+              deleted_at: now,
+              updated_at: now,
+              version: currentVersion + 1,
+            })
+            .eq("id", change.id)
+            .eq("user_id", session.user.id)
+            .eq("version", currentVersion)
+            .is("deleted_at", null)
+            .select("*")
+            .maybeSingle();
+
+          if (error) {
+            return databaseError(error, "Failed to apply sync note delete");
+          }
+          if (!data) {
+            const { data: latest, error: latestError } = await getOwnedNote(
+              change.id,
+              session.user.id,
+            );
+            if (latestError) {
+              return databaseError(latestError, "Failed to resolve sync delete conflict");
+            }
+            conflicts.push({
+              id: change.id,
+              reason: "version_conflict",
+              remote: latest ? mapNote(latest) : null,
+            });
+            continue;
+          }
+          synced.push(mapNote(data));
+          continue;
+        }
+
         if (current) {
           if (isSameSyncedContent(current, change)) {
             synced.push(mapNote(current));

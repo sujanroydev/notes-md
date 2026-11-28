@@ -46,6 +46,12 @@ their sync IDs and versions; when both copies changed since the last sync, the
 extension keeps the local file and reports the conflict in the **NOTES.md Sync**
 output channel. Review the web copy before resolving such conflicts.
 
+In the web app, Work notes are stored in browser IndexedDB first. The list and
+editor read from that local store, and a persistent queue syncs changes to the
+authenticated account in the background. Offline changes remain queued across
+restarts. When both sides changed, the local edit is retried and the remote
+version is preserved as a separate conflict copy rather than silently discarded.
+
 ### Example
 
 For a project named `my-project`, you could have:

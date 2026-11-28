@@ -1,6 +1,6 @@
 const CACHE_PREFIX = "notes-md-";
 // Bump this when the cached shell or cache strategy changes.
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `${CACHE_PREFIX}shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `${CACHE_PREFIX}static-${CACHE_VERSION}`;
 const PAGE_CACHE = `${CACHE_PREFIX}pages-${CACHE_VERSION}`;
@@ -22,6 +22,10 @@ function isPrivatePagePath(pathname) {
     pathname === "/work" ||
     pathname.startsWith("/work/")
   );
+}
+
+function isOfflineWorkPagePath(pathname) {
+  return pathname === "/work" || pathname.startsWith("/work/note/");
 }
 
 function isCacheableResponse(response) {
@@ -146,16 +150,27 @@ async function staleWhileRevalidate(event) {
 async function networkFirstNavigation(request) {
   const url = new URL(request.url);
   const cacheableShell = url.pathname === "/personal" && url.search === "";
+  const cacheableWorkPage =
+    isOfflineWorkPagePath(url.pathname) && url.search === "";
 
   try {
     const response = await fetch(request);
     if (cacheableShell && isCacheableResponse(response)) {
       const cache = await caches.open(PAGE_CACHE);
       await cache.put(request, response.clone());
+    } else if (
+      cacheableWorkPage &&
+      response.ok &&
+      response.type === "basic" &&
+      !response.redirected &&
+      (response.headers.get("Content-Type") || "").includes("text/html")
+    ) {
+      const cache = await caches.open(PAGE_CACHE);
+      await cache.put(request, response.clone());
     }
     return response;
   } catch {
-    if (cacheableShell) {
+    if (cacheableShell || cacheableWorkPage) {
       const cached = await caches.open(PAGE_CACHE).then((cache) => cache.match(request));
       if (cached) {
         return cached;

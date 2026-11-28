@@ -52,7 +52,13 @@ export function ModeSwitcher({ mode, user }: ModeSwitcherProps) {
         size="sm"
         variant={mode === "work" ? "default" : "ghost"}
         aria-current={mode === "work" ? "page" : undefined}
-        onClick={() => router.push("/work")}
+        onClick={() => {
+          if (navigator.onLine) {
+            router.push("/work");
+          } else {
+            window.location.assign("/work");
+          }
+        }}
       >
         <Folder className="h-4 w-4" />
         <span className="hidden sm:inline">Work</span>

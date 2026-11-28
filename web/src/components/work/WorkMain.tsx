@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { liveQuery } from "dexie";
 import {
   FileText,
   FolderOpen,
@@ -9,31 +10,24 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeSwitcher } from "@/components/layout/ModeSwitcher";
 import { showToast } from "@/components/ui/toast";
+import { WorkNoteEditor } from "@/components/work/WorkNoteEditor";
 import {
-  listNotes,
-  listProjects,
   type WorkNote,
   type WorkProject,
 } from "@/lib/api";
 import {
-  cacheWorkNotes,
-  cacheWorkProjects,
-  deleteCachedProject,
-  listCachedNotes,
-  listCachedProjects,
+  deleteProjectAndQueue,
   localNote,
   localProject,
-  queueNoteUpsert,
-  queueProjectDelete,
-  queueProjectUpsert,
-  saveCachedNote,
-  saveCachedProject,
+  saveNoteAndQueue,
+  saveProjectAndQueue,
+  WORK_DB,
+  type WorkQueueOperation,
 } from "@/stores/workDb";
 import { refreshRemoteWork, syncWorkNow } from "@/lib/workSync";
 
@@ -46,87 +40,104 @@ function messageOf(error: unknown): string {
 }
 
 export function WorkMain({ user }: WorkMainProps) {
-  const router = useRouter();
   const [projects, setProjects] = useState<WorkProject[]>([]);
   const [notes, setNotes] = useState<WorkNote[]>([]);
+  const [queue, setQueue] = useState<WorkQueueOperation[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [notesLoading, setNotesLoading] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const [online, setOnline] = useState(true);
 
-  const loadProjects = useCallback(async () => {
-    setProjectsLoading(true);
+  useEffect(() => {
+    const updateStatus = () => setOnline(navigator.onLine);
+    updateStatus();
+    window.addEventListener("online", updateStatus);
+    window.addEventListener("offline", updateStatus);
+    return () => {
+      window.removeEventListener("online", updateStatus);
+      window.removeEventListener("offline", updateStatus);
+    };
+  }, []);
+
+  const refresh = useCallback(async (force = false) => {
     setProjectError(null);
-    setProjects(await listCachedProjects(user.id));
+    setNoteError(null);
     try {
-      const remoteProjects = await listProjects();
-      await cacheWorkProjects(remoteProjects);
-      setProjects(await listCachedProjects(user.id));
-      await syncWorkNow();
+      await refreshRemoteWork(user.id, force);
     } catch (error) {
-      setProjectError(messageOf(error));
-    } finally {
-      setProjectsLoading(false);
+      const message = messageOf(error);
+      setProjectError(message);
+      setNoteError(message);
     }
   }, [user.id]);
 
-  const loadNotes = useCallback(async () => {
-    setNotesLoading(true);
-    setNoteError(null);
-    setNotes(await listCachedNotes(user.id));
-    try {
-      const remoteNotes = await listNotes(activeProject ?? undefined);
-      await cacheWorkNotes(remoteNotes);
-      setNotes(await listCachedNotes(user.id));
-      await syncWorkNow();
-    } catch (error) {
-      setNoteError(messageOf(error));
-      setNotes(await listCachedNotes(user.id));
-    } finally {
-      setNotesLoading(false);
-    }
-  }, [activeProject, user.id]);
+  useEffect(() => {
+    const subscription = liveQuery(async () => {
+      const [localProjects, localNotes, localQueue] = await Promise.all([
+        WORK_DB.projects.where("userId").equals(user.id).sortBy("name"),
+        WORK_DB.notes
+          .where("userId")
+          .equals(user.id)
+          .filter((note) => note.deletedAt === null)
+          .sortBy("updatedAt"),
+        WORK_DB.queue.toArray(),
+      ]);
+      return {
+        projects: localProjects,
+        notes: localNotes,
+        queue: localQueue.filter(
+          (operation) =>
+            (operation.entity === "note" && operation.note.userId === user.id) ||
+            (operation.entity === "project" && operation.project.userId === user.id),
+        ),
+      };
+    }).subscribe({
+      next: (local) => {
+        setProjects(local.projects);
+        setNotes(local.notes);
+        setQueue(local.queue);
+        setProjectsLoading(false);
+        setNotesLoading(false);
+      },
+      error: (error: unknown) => {
+        const message = messageOf(error);
+        setProjectError(message);
+        setNoteError(message);
+        setProjectsLoading(false);
+        setNotesLoading(false);
+      },
+    });
+    return () => subscription.unsubscribe();
+  }, [user.id]);
 
   useEffect(() => {
-    void loadProjects();
-  }, [loadProjects]);
-
-  useEffect(() => {
-    void loadNotes();
-  }, [loadNotes]);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      void refreshRemoteWork(user.id).finally(() => {
-        void syncWorkNow();
-      });
-    };
-    if (navigator.onLine) {
-      void handleOnline();
-    }
+    void refresh();
+    const handleOnline = () => void refresh(true);
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [user.id]);
+  }, [refresh]);
 
   const handleCreateProject = async () => {
     const name = window.prompt("Project name:");
     if (name === null) return;
-    const project = localProject(user.id, name);
-    await saveCachedProject(project);
-    await queueProjectUpsert(project);
-    setProjects((current) => [...current, project]);
-    setActiveProject(project.id);
     try {
-      await syncWorkNow();
-      setProjects(await listCachedProjects(user.id));
+      const project = localProject(user.id, name);
+      await saveProjectAndQueue(project);
+      setProjects((current) => [...current, project]);
+      setActiveProject(project.id);
       showToast({ title: "Project saved locally", variant: "success" });
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setNoteError(messageOf(error));
+      });
     } catch (error) {
       showToast({
-        title: "Project saved locally",
+        title: "Could not save project locally",
         description: messageOf(error),
-        variant: "success",
+        variant: "error",
       });
     }
   };
@@ -139,20 +150,20 @@ export function WorkMain({ user }: WorkMainProps) {
       name,
       updatedAt: new Date().toISOString(),
     };
-    await saveCachedProject(updated);
-    await queueProjectUpsert(updated, project.name);
-    setProjects((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
     try {
-      await syncWorkNow();
-      setProjects(await listCachedProjects(user.id));
+      await saveProjectAndQueue(updated, project.name);
+      setProjects((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
       showToast({ title: "Project rename saved locally", variant: "success" });
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setNoteError(messageOf(error));
+      });
     } catch (error) {
       showToast({
-        title: "Project rename saved locally",
+        title: "Could not rename project locally",
         description: messageOf(error),
-        variant: "success",
+        variant: "error",
       });
     }
   };
@@ -166,21 +177,21 @@ export function WorkMain({ user }: WorkMainProps) {
       deletedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    await saveCachedProject(deleted);
-    await queueProjectDelete(deleted);
-    await deleteCachedProject(project.id);
-    setProjects((current) => current.filter((item) => item.id !== project.id));
-    if (activeProject === project.id) {
-      setActiveProject(null);
-    }
     try {
-      await syncWorkNow();
+      await deleteProjectAndQueue(deleted);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      if (activeProject === project.id) {
+        setActiveProject(null);
+      }
       showToast({ title: "Project moved to Trash locally", variant: "success" });
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setNoteError(messageOf(error));
+      });
     } catch (error) {
       showToast({
-        title: "Project moved to Trash locally",
+        title: "Could not move project to Trash",
         description: messageOf(error),
-        variant: "success",
+        variant: "error",
       });
     }
   };
@@ -188,17 +199,18 @@ export function WorkMain({ user }: WorkMainProps) {
   const handleCreateNote = async () => {
     const name = window.prompt("Note name:", "Untitled note");
     if (name === null) return;
-    const note = localNote(user.id, activeProject, name);
-    await saveCachedNote(note);
-    await queueNoteUpsert(note);
-    router.push(`/work/note/${note.id}`);
     try {
-      await syncWorkNow();
+      const note = localNote(user.id, activeProject, name);
+      await saveNoteAndQueue(note);
+      setActiveNoteId(note.id);
+      void syncWorkNow(user.id, true).catch((error: unknown) => {
+        setNoteError(messageOf(error));
+      });
     } catch (error) {
       showToast({
-        title: "Note saved locally",
+        title: "Could not save note locally",
         description: messageOf(error),
-        variant: "success",
+        variant: "error",
       });
     }
   };
@@ -213,6 +225,9 @@ export function WorkMain({ user }: WorkMainProps) {
   const visibleNotes = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return notes.filter((note) => {
+      if (activeProject !== null && note.projectId !== activeProject) {
+        return false;
+      }
       const projectName = projects.find((project) => project.id === note.projectId)?.name ?? "";
       return (
         note.name.toLocaleLowerCase().includes(query) ||
@@ -220,9 +235,30 @@ export function WorkMain({ user }: WorkMainProps) {
         projectName.toLocaleLowerCase().includes(query)
       );
     });
-  }, [notes, projects, search]);
+  }, [activeProject, notes, projects, search]);
 
   const currentProject = projects.find((project) => project.id === activeProject);
+  const noteSyncStatus = !online
+    ? `Offline · ${queue.length} pending`
+    : queue.some((operation) => operation.status === "syncing")
+      ? "Syncing…"
+      : queue.some((operation) => operation.status === "failed")
+        ? `Sync failed · ${queue.length} pending`
+        : queue.length > 0
+          ? `Saved locally · ${queue.length} pending`
+          : noteError
+            ? "Saved locally · sync unavailable"
+            : "Synced with account";
+
+  if (activeNoteId) {
+    return (
+      <WorkNoteEditor
+        user={user}
+        noteId={activeNoteId}
+        onClose={() => setActiveNoteId(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
@@ -236,7 +272,7 @@ export function WorkMain({ user }: WorkMainProps) {
             className="pl-9"
           />
         </div>
-        <Badge variant="work" className="hidden sm:inline-flex">Work · Supabase</Badge>
+        <Badge variant="work" className="hidden sm:inline-flex">Work · Local-first</Badge>
         <select
           aria-label="Choose project"
           value={activeProject ?? ""}
@@ -328,7 +364,7 @@ export function WorkMain({ user }: WorkMainProps) {
               <button
                 type="button"
                 className="mt-2 underline"
-                onClick={() => void loadProjects()}
+                onClick={() => void refresh(true)}
               >
                 Retry
               </button>
@@ -349,10 +385,8 @@ export function WorkMain({ user }: WorkMainProps) {
               </h1>
               <p className="text-xs text-muted-foreground">
                 {notesLoading
-                  ? "Loading from Supabase…"
-                  : noteError
-                    ? "Could not synchronize with Supabase"
-                    : `${visibleNotes.length} ${visibleNotes.length === 1 ? "note" : "notes"} · Synced with Supabase`}
+                  ? "Loading saved notes…"
+                  : `${visibleNotes.length} ${visibleNotes.length === 1 ? "note" : "notes"} · ${noteSyncStatus}`}
               </p>
             </div>
             <Button type="button" onClick={() => void handleCreateNote()}>
@@ -369,7 +403,7 @@ export function WorkMain({ user }: WorkMainProps) {
               <button
                 type="button"
                 className="underline"
-                onClick={() => void loadNotes()}
+                onClick={() => void refresh(true)}
               >
                 Retry
               </button>
@@ -381,7 +415,7 @@ export function WorkMain({ user }: WorkMainProps) {
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Loading Work notes…
               </p>
-            ) : !noteError && visibleNotes.length === 0 ? (
+            ) : visibleNotes.length === 0 ? (
               <div className="flex min-h-64 flex-col items-center justify-center text-center text-muted-foreground">
                 <FileText className="mb-3 h-10 w-10 opacity-40" />
                 <p className="text-sm font-medium">
@@ -390,7 +424,7 @@ export function WorkMain({ user }: WorkMainProps) {
                 <p className="mt-1 text-xs">
                   {search.trim()
                     ? "Try a different search."
-                    : "Notes here are stored in your authenticated Supabase account."}
+                    : "Work notes are saved on this device and sync with your account when online."}
                 </p>
               </div>
             ) : (
@@ -402,14 +436,17 @@ export function WorkMain({ user }: WorkMainProps) {
                       type="button"
                       key={note.id}
                       className="flex min-h-36 flex-col rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/40"
-                      onClick={() => router.push(`/work/note/${note.id}`)}
+                      onClick={() => setActiveNoteId(note.id)}
                     >
                       <span className="truncate text-sm font-semibold">{note.name}</span>
                       <span className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs text-muted-foreground">
                         {note.content || "No content yet"}
                       </span>
                       <span className="mt-auto flex items-center justify-between pt-4 text-[11px] text-muted-foreground">
-                        <span>{project?.name ?? "Global note"}</span>
+                        <span>
+                          {project?.name ??
+                            (note.noteType === "global" ? "Global note" : "Unfiled")}
+                        </span>
                         <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
                       </span>
                     </button>
